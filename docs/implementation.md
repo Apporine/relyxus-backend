@@ -60,6 +60,32 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 
 ---
 
+## Feature F-API-FOUNDATION — Relyxus API service foundation (MPS Phase 0)
+
+**Scope:** the `services/api` FastAPI service: configuration, probes, OpenAPI contract, error model, observability, persistence, tenancy and RLS. Conventions: [ADR-0003](adr/0003-api-conventions.md).
+
+| # | Branch | Scope | Requirement IDs | Status |
+|---|---|---|---|---|
+| A1 | `feat/api-service-skeleton` | Settings (fail fast), app factory, `/health`, `/ready`, `/docs`, `/docs.json`, OpenAPI export + drift test, ADR-0003 | TSD-11.01 (probes), MP-28.01, MPS-22A.03 (adapted), MP-9.01, context.md §6/§11 | in review |
+| A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | planned |
+| A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | planned |
+| A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | planned |
+| A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | planned |
+
+### Progress log
+
+- **A1 — 2026-10-14** — `services/api` package (`relyxus_api`).
+  - **Settings:** `RELYXUS_ENVIRONMENT` and `RELYXUS_PUBLIC_BASE_URL` are required; the app refuses to start without them.
+  - **Factory:** `create_app` / `build_app` (uvicorn `--factory`).
+  - **Health module** (controller → service): liveness never checks dependencies; readiness aggregates dependency probes and returns 503 when any fails.
+  - **Docs:** `/docs` and `/docs.json` are served outside production and return 404 in production.
+  - **Contract:** OpenAPI 3.1 exported to `packages/schemas/openapi/relyxus-api.openapi.json`, with a drift test.
+  - Test client uses `httpx2` (Starlette 1.8 deprecates `httpx`).
+
+  **Results:** ruff, mypy strict, pytest 174 passed. Manual uvicorn run: `/health` 200, `/ready` 200, `/docs` 200; startup without the base URL fails fast.
+
+---
+
 ## Feature F-ACP-LIC — Licence issuance (Apporine Control Plane)
 
 Status: **blocked** on Q-34 (repo placement, MP-37.01) and the missing Admin Control Plane Spec v1.0 (Q-05).

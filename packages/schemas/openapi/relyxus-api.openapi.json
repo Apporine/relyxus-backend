@@ -1,0 +1,188 @@
+{
+  "components": {
+    "schemas": {
+      "DependencyCheck": {
+        "properties": {
+          "is_reachable": {
+            "examples": [
+              true
+            ],
+            "title": "Is Reachable",
+            "type": "boolean"
+          },
+          "name": {
+            "examples": [
+              "postgresql"
+            ],
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "is_reachable"
+        ],
+        "title": "DependencyCheck",
+        "type": "object"
+      },
+      "HealthStatus": {
+        "enum": [
+          "ok"
+        ],
+        "title": "HealthStatus",
+        "type": "string"
+      },
+      "LivenessReport": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus",
+            "examples": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LivenessReport",
+        "type": "object"
+      },
+      "ReadinessReport": {
+        "properties": {
+          "checks": {
+            "examples": [
+              [
+                {
+                  "is_reachable": true,
+                  "name": "postgresql"
+                }
+              ]
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DependencyCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReadinessStatus",
+            "examples": [
+              "ready"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "ReadinessReport",
+        "type": "object"
+      },
+      "ReadinessStatus": {
+        "enum": [
+          "ready",
+          "not_ready"
+        ],
+        "title": "ReadinessStatus",
+        "type": "string"
+      },
+      "SuccessEnvelope_LivenessReport_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LivenessReport"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[LivenessReport]",
+        "type": "object"
+      },
+      "SuccessEnvelope_ReadinessReport_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReadinessReport"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[ReadinessReport]",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Relyxus API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "description": "Returns 200 while the process is running. Does not check dependencies.",
+        "operationId": "get_liveness_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_LivenessReport_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Returns 200 only when every required dependency is reachable; 503 otherwise.",
+        "operationId": "get_readiness_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ReadinessReport_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ReadinessReport_"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  }
+}

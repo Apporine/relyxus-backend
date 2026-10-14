@@ -4,6 +4,7 @@ from fastapi import APIRouter, Header, Request, Response
 from fastapi.responses import JSONResponse
 
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
+from relyxus_api.modules.access.role_requirements import AuditReadWorkspaceDependency
 from relyxus_api.modules.audit.model import ActorType
 from relyxus_api.modules.audit.repository import AuditRepository
 from relyxus_api.modules.audit.schema import (
@@ -37,7 +38,7 @@ def _service() -> AuditService:
     response_model=ListEnvelope[AuditEventSummary],
 )
 async def list_audit_events(
-    workspace: WorkspaceSessionDependency,
+    workspace: AuditReadWorkspaceDependency,
     page_request: PageRequestDependency,
 ) -> ListEnvelope[AuditEventSummary]:
     page = await _service().list_workspace_events(
@@ -56,7 +57,7 @@ async def list_audit_events(
     response_model=SuccessEnvelope[ChainVerificationReport],
 )
 async def verify_audit_chain(
-    workspace: WorkspaceSessionDependency,
+    workspace: AuditReadWorkspaceDependency,
 ) -> SuccessEnvelope[ChainVerificationReport]:
     failures = await _service().verify_chain(
         workspace.session, workspace.access.workspace_id

@@ -27,6 +27,7 @@ jobs:
         run: uv sync --locked
 
       - name: Assert a single Alembic head
+        if: hashFiles('services/api/migrations/versions/*.py') != ''
         run: uv run python scripts/check_single_alembic_head.py
 
   python:

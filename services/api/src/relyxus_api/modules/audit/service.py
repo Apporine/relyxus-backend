@@ -12,6 +12,12 @@ from relyxus_api.modules.audit.hashing import compute_entry_hash, hashed_fields
 from relyxus_api.modules.audit.model import ActorType, AuditEvent, AuditOutcome
 from relyxus_api.modules.audit.repository import AuditRepository
 from relyxus_api.shared.errors.app_errors import ValidationFailedError
+from relyxus_api.shared.http.pagination import (
+    InvalidCursorError,
+    Page,
+    PageRequest,
+    build_page,
+)
 
 
 class InvalidAuditChainError(ValidationFailedError):
@@ -113,6 +119,25 @@ class AuditService:
             entry_hash=entry_hash,
         )
         return await self._repository.add_event(session, record)
+
+    async def list_workspace_events(
+        self,
+        session: AsyncSession,
+        workspace_id: uuid.UUID,
+        page_request: PageRequest,
+    ) -> Page[AuditEvent]:
+        after_sequence: int | None = None
+        if page_request.after is not None:
+            if len(page_request.after) != 1 or not isinstance(page_request.after[0], int):
+                raise InvalidCursorError("Audit event cursors must encode a sequence number.")
+            after_sequence = page_request.after[0]
+        fetched = await self._repository.list_chain_page(
+            session,
+            workspace_id,
+            after_sequence,
+            page_request.limit + 1,
+        )
+        return build_page(fetched, page_request, lambda event: (event.sequence,))
 
     async def verify_chain(
         self, session: AsyncSession, chain_id: uuid.UUID

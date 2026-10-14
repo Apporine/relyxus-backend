@@ -22,6 +22,8 @@ _EXPORT_SETTINGS = Settings(
     environment=Environment.LOCAL,
     public_base_url=AnyHttpUrl("http://localhost:8000"),
     database_url=SecretStr("postgresql+psycopg://export@localhost:1/unused"),
+    oidc_issuer_url="https://id.example.invalid/realms/relyxus",
+    oidc_audience="relyxus-api",
 )
 
 

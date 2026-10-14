@@ -19,6 +19,10 @@ class AppError(Exception):
         super().__init__(detail)
         self.detail = detail
 
+    @property
+    def response_headers(self) -> dict[str, str]:
+        return {}
+
 
 class ValidationFailedError(AppError):
     code: ClassVar[str] = "VALIDATION_FAILED"
@@ -30,6 +34,15 @@ class AuthenticationRequiredError(AppError):
     code: ClassVar[str] = "AUTHENTICATION_REQUIRED"
     status_code: ClassVar[int] = status.HTTP_401_UNAUTHORIZED
     title: ClassVar[str] = "Authentication required"
+    # RFC 6750 §3: tell the client which scheme to use and, for bad tokens, why.
+    bearer_error: ClassVar[str | None] = None
+
+    @property
+    def response_headers(self) -> dict[str, str]:
+        challenge = 'Bearer realm="relyxus"'
+        if self.bearer_error is not None:
+            challenge += f', error="{self.bearer_error}"'
+        return {"WWW-Authenticate": challenge}
 
 
 class PermissionDeniedError(AppError):

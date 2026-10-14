@@ -36,7 +36,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(Exception, _handle_unexpected_error)
 
 
-def _problem_response(
+def _build_problem(
     request: Request,
     *,
     status_code: int,
@@ -44,23 +44,27 @@ def _problem_response(
     title: str,
     detail: str,
     errors: list[FieldProblem] | None = None,
-) -> JSONResponse:
-    correlation_id = get_correlation_id()
-    problem = ProblemDetails(
+) -> ProblemDetails:
+    return ProblemDetails(
         type=build_problem_type(code),
         title=title,
         status=status_code,
         detail=detail,
         instance=request.url.path,
         code=code,
-        correlation_id=correlation_id,
+        correlation_id=get_correlation_id(),
         errors=errors,
     )
+
+
+def _problem_response(
+    problem: ProblemDetails, extra_headers: dict[str, str] | None = None
+) -> JSONResponse:
     return JSONResponse(
         problem.model_dump(exclude_none=True),
-        status_code=status_code,
+        status_code=problem.status,
         media_type=PROBLEM_JSON_MEDIA_TYPE,
-        headers={CORRELATION_HEADER: correlation_id},
+        headers={CORRELATION_HEADER: problem.correlation_id, **(extra_headers or {})},
     )
 
 
@@ -71,13 +75,14 @@ async def _handle_app_error(request: Request, error: AppError) -> JSONResponse:
         else logging.INFO
     )
     logger.log(log_level, "request failed", extra={"error_code": error.code})
-    return _problem_response(
+    problem = _build_problem(
         request,
         status_code=error.status_code,
         code=error.code,
         title=error.title,
         detail=error.detail,
     )
+    return _problem_response(problem, error.response_headers)
 
 
 async def _handle_validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
@@ -86,32 +91,38 @@ async def _handle_validation_error(request: Request, error: RequestValidationErr
         for detail in error.errors()
     ]
     return _problem_response(
-        request,
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        code="VALIDATION_FAILED",
-        title="Validation failed",
-        detail="The request is invalid; see errors for each field.",
-        errors=field_problems,
+        _build_problem(
+            request,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            code="VALIDATION_FAILED",
+            title="Validation failed",
+            detail="The request is invalid; see errors for each field.",
+            errors=field_problems,
+        )
     )
 
 
 async def _handle_http_error(request: Request, error: StarletteHTTPException) -> JSONResponse:
     code, title = _HTTP_ERROR_CODES.get(error.status_code, (f"HTTP_{error.status_code}", "Error"))
     return _problem_response(
-        request,
-        status_code=error.status_code,
-        code=code,
-        title=title,
-        detail=error.detail if isinstance(error.detail, str) else title,
+        _build_problem(
+            request,
+            status_code=error.status_code,
+            code=code,
+            title=title,
+            detail=error.detail if isinstance(error.detail, str) else title,
+        )
     )
 
 
 async def _handle_unexpected_error(request: Request, error: Exception) -> JSONResponse:
     logger.exception("unhandled error", exc_info=error)
     return _problem_response(
-        request,
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        code="INTERNAL_ERROR",
-        title="Internal error",
-        detail=_INTERNAL_DETAIL,
+        _build_problem(
+            request,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="INTERNAL_ERROR",
+            title="Internal error",
+            detail=_INTERNAL_DETAIL,
+        )
     )

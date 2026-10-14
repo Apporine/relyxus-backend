@@ -71,6 +71,8 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | in review |
 | A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | in review |
 | A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | in review |
+| A6a | `feat/api-access-token-auth` | Keycloak OIDC access-token verification, 401 challenges, `GET /api/v1/me` | MPS-14.10 (token side), TSD-9.01, ADR-0003 §7, context.md §10 | in review |
+| A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | planned |
 
 ### Progress log
 
@@ -145,6 +147,17 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - context required inside a transaction
   - models exactly match migrations
   - superuser role reported unsafe outside local
+
+- **A6a — 2026-10-14** — Access-token authentication.
+  - **`AccessTokenVerifier`** (PyJWT): checks the signature via the issuer's JWKS (`JwksSigningKeyResolver`, cached by `kid`), the exact issuer, the audience, `exp`/`nbf` with configurable leeway, required claims (`exp`, `iat`, `iss`, `aud`, `sub`) and an algorithm allow-list (default RS256).
+  - **Failure response:** one generic `INVALID_ACCESS_TOKEN` 401, so the response never helps an attacker tune a forged token.
+  - **401 challenges:** responses carry an RFC 6750 `WWW-Authenticate: Bearer` header (with `error="invalid_token"` for bad tokens).
+  - **Bearer dependency:** runs in a worker thread, because the first JWKS fetch is blocking I/O.
+  - **`GET /api/v1/me`:** returns the verified identity. OpenAPI declares `bearerAuth`; contract version 0.3.0.
+  - **New settings:** `RELYXUS_OIDC_ISSUER_URL` (kept as the exact string), `RELYXUS_OIDC_AUDIENCE`, optional JWKS URL (defaults to Keycloak's certs path), algorithms, leeway.
+  - **Refactor:** the problem-response builder is split in two.
+
+  **Results:** ruff and mypy strict (73 files) pass; pytest 241 passed against local PostgreSQL. The auth tests reject a token signed by another key, a wrong issuer, a wrong audience, expiry, not-before, missing `sub`, missing `exp`, `alg: none`, HS256 algorithm confusion and malformed tokens. They also cover leeway, JWKS `kid` selection with an unknown `kid` rejected, and the OpenAPI security declaration.
 
 ---
 

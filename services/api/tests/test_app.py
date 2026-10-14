@@ -58,6 +58,8 @@ def test_configuration_is_read_from_environment(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setenv("RELYXUS_ENVIRONMENT", "staging")
     monkeypatch.setenv("RELYXUS_PUBLIC_BASE_URL", "https://api.staging.example.test")
     monkeypatch.setenv("RELYXUS_DATABASE_URL", "postgresql+psycopg://app@db.internal/relyxus")
+    monkeypatch.setenv("RELYXUS_OIDC_ISSUER_URL", "https://id.example.test/realms/relyxus")
+    monkeypatch.setenv("RELYXUS_OIDC_AUDIENCE", "relyxus-api")
 
     settings = load_settings()
 

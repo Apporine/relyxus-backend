@@ -30,7 +30,13 @@ def build_problem_type(code: str) -> str:
     return PROBLEM_TYPE_PREFIX + code.lower().replace("_", "-")
 
 
-PROBLEM_RESPONSES: dict[int | str, dict[str, object]] = {
-    status_code: {"model": ProblemDetails, "content": {PROBLEM_JSON_MEDIA_TYPE: {}}}
-    for status_code in (422, 500)
-}
+def _problem_responses(*status_codes: int) -> dict[int | str, dict[str, object]]:
+    """OpenAPI `responses` entries documenting problem-details bodies for these statuses."""
+    return {
+        status_code: {"model": ProblemDetails, "content": {PROBLEM_JSON_MEDIA_TYPE: {}}}
+        for status_code in status_codes
+    }
+
+
+PROBLEM_RESPONSES = _problem_responses(422, 500)
+AUTHENTICATED_RESPONSES = _problem_responses(401, 403)

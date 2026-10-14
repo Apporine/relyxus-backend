@@ -1,0 +1,144 @@
+{
+  "$defs": {
+    "DeploymentAllowance": {
+      "enum": [
+        "production",
+        "non_production",
+        "disaster_recovery"
+      ],
+      "title": "DeploymentAllowance",
+      "type": "string"
+    },
+    "DeploymentBinding": {
+      "additionalProperties": false,
+      "description": "A logical deployment the licence is valid for; never a pod or container ID (LIC-12.01).",
+      "properties": {
+        "allowance": {
+          "$ref": "#/$defs/DeploymentAllowance"
+        },
+        "deployment_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+          "title": "Deployment Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "deployment_id",
+        "allowance"
+      ],
+      "title": "DeploymentBinding",
+      "type": "object"
+    },
+    "SupportTier": {
+      "enum": [
+        "standard",
+        "premium",
+        "enterprise"
+      ],
+      "title": "SupportTier",
+      "type": "string"
+    }
+  },
+  "$id": "urn:apporine:licensing:license-payload:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The signed commercial entitlement. Contains no secrets by construction (LIC-5.04).",
+  "properties": {
+    "customer_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "Customer Id",
+      "type": "string"
+    },
+    "deployment_bindings": {
+      "items": {
+        "$ref": "#/$defs/DeploymentBinding"
+      },
+      "minItems": 1,
+      "title": "Deployment Bindings",
+      "type": "array"
+    },
+    "entitlements": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9-]{0,62}\\.[a-z][a-z0-9_]{0,62}$",
+        "type": "string"
+      },
+      "title": "Entitlements",
+      "type": "array"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "grace_policy_id": {
+      "pattern": "^[a-z][a-z0-9-]{0,62}$",
+      "title": "Grace Policy Id",
+      "type": "string"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "license_id": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "title": "License Id",
+      "type": "string"
+    },
+    "limits": {
+      "patternProperties": {
+        "^[a-z][a-z0-9-]{0,62}\\.[a-z][a-z0-9_]{0,62}$": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "title": "Limits",
+      "type": "object"
+    },
+    "not_before": {
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "title": "Not Before",
+      "type": "string"
+    },
+    "product_id": {
+      "pattern": "^[a-z][a-z0-9-]{0,62}$",
+      "title": "Product Id",
+      "type": "string"
+    },
+    "revision": {
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "support_tier": {
+      "$ref": "#/$defs/SupportTier"
+    }
+  },
+  "required": [
+    "schema_version",
+    "license_id",
+    "revision",
+    "customer_id",
+    "product_id",
+    "deployment_bindings",
+    "issued_at",
+    "not_before",
+    "expires_at",
+    "grace_policy_id",
+    "entitlements",
+    "limits",
+    "support_tier"
+  ],
+  "title": "LicensePayloadV1",
+  "type": "object"
+}

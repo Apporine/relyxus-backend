@@ -82,7 +82,7 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages", "services"]
-pythonpath = ["packages/licensing/tests", "services/api/tests"]
+pythonpath = ["packages/licensing/tests", "packages/cli/tests", "services/api/tests"]
 addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
 xfail_strict = true
 markers = [

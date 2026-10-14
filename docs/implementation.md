@@ -41,9 +41,9 @@ Still open and **not** assumed: Q-01, Q-02, Q-03 (no HTTP endpoints built yet), 
 | 4 | [#4](https://github.com/Apporine/relyxus-backend/pull/4) `feat/license-payload-schema` | Payload/envelope models, typed errors, exported JSON Schemas + drift test | LIC-5.01, LIC-5.02, LIC-5.04, LIC-12.01, LIC-12.02, MPS-29.05, MPS-29.06, MP-19.01 | merged |
 | 5 | [#5](https://github.com/Apporine/relyxus-backend/pull/5) `feat/license-signature-verification` | Key set, base64url, ECDSA verify, golden signature vector | LIC-6.03, LIC-6.04, MPS-29.15–29.17, TSD-23.04, TSD-23.07 | merged |
 | 6 | [#6](https://github.com/Apporine/relyxus-backend/pull/6) `feat/license-verifier` | Verification pipeline, binding checks, state evaluation, grace registry, entitlement access | LIC-2.05, LIC-7.02–7.04, LIC-13.x, LIC-19.02, TSD-23.14, MPS-29.04, MPS-29.08, MPS-29.20 | merged |
-| 7 | `feat/license-key-set-document` | Versioned trusted key-set file format + schema + loader | LIC-6.04, DEP-23.01, TSD-23.04 | in review |
-| 8 | `feat/license-cli-inspect-verify` | `relyxus license inspect\|verify` | LIC-15.03, DEP-23.02 | in review |
-| 9 | `feat/license-store` | install/replace/status, Superseded history, downgrade/replay protection (needs DB foundation) | LIC-7.07, LIC-12.03, LIC-17.02, DEP-23.07 | blocked (DB foundation) |
+| 7 | [#8](https://github.com/Apporine/relyxus-backend/pull/8) `feat/license-key-set-document` | Versioned trusted key-set file format + schema + loader | LIC-6.04, DEP-23.01, TSD-23.04 | merged |
+| 8 | [#9](https://github.com/Apporine/relyxus-backend/pull/9) `feat/license-cli-inspect-verify` | `relyxus license inspect\|verify` | LIC-15.03, DEP-23.02 | in review |
+| 9 | `feat/license-store` | install/replace/status, Superseded history, downgrade/replay protection | LIC-7.07, LIC-12.03, LIC-17.02, DEP-23.07 | merged (API A14) |
 | 10 | `feat/license-runtime-integration` | Startup + periodic verification, embedded key pinning, safe degradation | LIC-10.01, MPS-6A.11, MPS-29.04 | blocked (Q-07a, Q-33) |
 | 11 | `feat/license-connected-refresh` | Outbound signed status client, cache, outage handling | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | planned (Licensing phase 5) |
 | 12 | `feat/license-airgap-import` | Offline import/renewal tooling | LIC-11.02, LIC-19.04 | planned (Licensing phase 6) |

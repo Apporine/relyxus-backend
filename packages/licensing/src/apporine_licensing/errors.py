@@ -45,3 +45,31 @@ class LicensePayloadInvalidError(LicenseVerificationError):
     """The payload violates the licence payload schema."""
 
     code: ClassVar[str] = "LICENSE_PAYLOAD_INVALID"
+
+
+class UnsupportedAlgorithmError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_UNSUPPORTED_ALGORITHM"
+
+
+class UnknownSigningKeyError(LicenseVerificationError):
+    """The envelope names a key that is not in the trusted key set."""
+
+    code: ClassVar[str] = "LICENSE_UNKNOWN_SIGNING_KEY"
+
+
+class SigningKeyEnvironmentError(LicenseVerificationError):
+    """The signing key belongs to another environment, e.g. staging vs production (LIC-6.03)."""
+
+    code: ClassVar[str] = "LICENSE_SIGNING_KEY_ENVIRONMENT_MISMATCH"
+
+
+class SignatureInvalidError(LicenseVerificationError):
+    """The signature does not match the payload: tampered, re-signed or corrupted."""
+
+    code: ClassVar[str] = "LICENSE_SIGNATURE_INVALID"
+
+
+class KeySetConfigurationError(LicenseError):
+    """The trusted key set is invalid: a deployment configuration fault, not a bad licence."""
+
+    code: ClassVar[str] = "LICENSE_KEY_SET_INVALID"

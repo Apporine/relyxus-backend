@@ -1,10 +1,33 @@
+"""Shared fixtures; signing helpers live in signing_support.py."""
+
 from typing import Any
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric import ec
 
-CUSTOMER_ID = "6f1c3a52-2d4e-4b7a-9c1e-3f5a7b9d0e21"
-LICENSE_ID = "0b7e2f64-81c9-4d3a-a5f2-9e4c6d8b1a37"
-DEPLOYMENT_ID = "acme-bank-prod-eu"
+from apporine_licensing.key_set import TrustedKey
+from signing_support import (
+    CUSTOMER_ID,
+    DEPLOYMENT_ID,
+    LICENSE_ID,
+    PRODUCTION_KEY_ID,
+    make_trusted_key,
+)
+
+
+@pytest.fixture(scope="session")
+def production_private_key() -> ec.EllipticCurvePrivateKey:
+    return ec.generate_private_key(ec.SECP256R1())
+
+
+@pytest.fixture(scope="session")
+def other_private_key() -> ec.EllipticCurvePrivateKey:
+    return ec.generate_private_key(ec.SECP256R1())
+
+
+@pytest.fixture
+def production_key(production_private_key: ec.EllipticCurvePrivateKey) -> TrustedKey:
+    return make_trusted_key(production_private_key, PRODUCTION_KEY_ID)
 
 
 @pytest.fixture

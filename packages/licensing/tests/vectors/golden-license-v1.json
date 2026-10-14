@@ -1,0 +1,37 @@
+{
+  "description": "Golden v1 licence signed once with a discarded P-256 key (ADR-0002, LIC-19.01).",
+  "key_id": "apporine-license-golden-1",
+  "environment": "production",
+  "key_valid_from": "2026-01-01T00:00:00Z",
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEy7RsRP9KAm0dyYoN4sWpLmTZitnE\nDLY4rT+xb2UyZUZz9kzMigXOc2LcSsj+YnVCmN+XwuykkDahdRe7NqxKTA==\n-----END PUBLIC KEY-----\n",
+  "envelope": "{\"algorithm\":\"ECDSA_P256_SHA256\",\"envelope_version\":1,\"key_id\":\"apporine-license-golden-1\",\"payload\":\"eyJjdXN0b21lcl9pZCI6IjlhOGI3YzZkLTVlNGYtNGEzYi04YzJkLTFlMGY5YThiN2M2ZCIsImRlcGxveW1lbnRfYmluZGluZ3MiOlt7ImFsbG93YW5jZSI6InByb2R1Y3Rpb24iLCJkZXBsb3ltZW50X2lkIjoiZ29sZGVuLWJhbmstcHJvZCJ9LHsiYWxsb3dhbmNlIjoibm9uX3Byb2R1Y3Rpb24iLCJkZXBsb3ltZW50X2lkIjoiZ29sZGVuLWJhbmstc3RhZ2luZyJ9XSwiZW50aXRsZW1lbnRzIjpbInJlbHl4dXMuYWR2YW5jZWRfcmVwbGF5IiwicmVseXh1cy5wcmVtaXVtX2Nvbm5lY3RvcnMiXSwiZXhwaXJlc19hdCI6IjIwMjctMTAtMTRUMDA6MDA6MDBaIiwiZ3JhY2VfcG9saWN5X2lkIjoic3RhbmRhcmQtMzBkIiwiaXNzdWVkX2F0IjoiMjAyNi0xMC0xNFQwODowMDowMFoiLCJsaWNlbnNlX2lkIjoiNWQyYTljNDEtN2UzYi00ZjgwLWI2YTEtMmM0ZDhlOWYwYTEzIiwibGltaXRzIjp7InJlbHl4dXMucHJvZHVjdGlvbl9kZXBsb3ltZW50cyI6MX0sIm5vdF9iZWZvcmUiOiIyMDI2LTEwLTE0VDAwOjAwOjAwWiIsInByb2R1Y3RfaWQiOiJyZWx5eHVzIiwicmV2aXNpb24iOjMsInNjaGVtYV92ZXJzaW9uIjoxLCJzdXBwb3J0X3RpZXIiOiJwcmVtaXVtIn0\",\"signature\":\"MEQCIAEQIwSyoMqUAIETmi4_6P7OdV56MxrnVZZo7sIPpm2xAiB1iEeQaKPnl2loU2f7rXLkxoqU9zmNL2oNkZ6M_gtJ1w\"}",
+  "payload": {
+    "schema_version": 1,
+    "license_id": "5d2a9c41-7e3b-4f80-b6a1-2c4d8e9f0a13",
+    "revision": 3,
+    "customer_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d",
+    "product_id": "relyxus",
+    "deployment_bindings": [
+      {
+        "deployment_id": "golden-bank-prod",
+        "allowance": "production"
+      },
+      {
+        "deployment_id": "golden-bank-staging",
+        "allowance": "non_production"
+      }
+    ],
+    "issued_at": "2026-10-14T08:00:00Z",
+    "not_before": "2026-10-14T00:00:00Z",
+    "expires_at": "2027-10-14T00:00:00Z",
+    "grace_policy_id": "standard-30d",
+    "entitlements": [
+      "relyxus.advanced_replay",
+      "relyxus.premium_connectors"
+    ],
+    "limits": {
+      "relyxus.production_deployments": 1
+    },
+    "support_tier": "premium"
+  }
+}

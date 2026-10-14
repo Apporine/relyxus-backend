@@ -22,6 +22,7 @@ from apporine_licensing.errors import (
     UnknownSigningKeyError,
 )
 from apporine_licensing.key_set import KeyEnvironment
+from relyxus_cli.key_set_commands import validate_key_set_file
 from relyxus_cli.license_commands import VerifyRequest, inspect_license, verify_license
 
 EXIT_OK = 0
@@ -55,7 +56,9 @@ _DEFAULT_NEXT_ACTION = f"{_DO_NOT_INSTALL} Contact Apporine support and quote th
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
     try:
-        if arguments.license_command == "inspect":
+        if arguments.command == "key-set":
+            result = validate_key_set_file(arguments.file)
+        elif arguments.license_command == "inspect":
             result = inspect_license(arguments.file)
         else:
             result = verify_license(
@@ -101,6 +104,13 @@ def _parse_utc(value: str) -> datetime:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="relyxus", description="Relyxus operations CLI")
     commands = parser.add_subparsers(dest="command", required=True)
+    key_set_parser = commands.add_parser("key-set", help="Trusted signing key set files")
+    key_set_commands = key_set_parser.add_subparsers(dest="key_set_command", required=True)
+    validate_parser = key_set_commands.add_parser(
+        "validate", help="Validate a trusted key-set document (v1) without loading a licence"
+    )
+    validate_parser.add_argument("--file", type=Path, required=True)
+
     license_parser = commands.add_parser("license", help="Commercial licence operations")
     license_commands = license_parser.add_subparsers(dest="license_command", required=True)
 

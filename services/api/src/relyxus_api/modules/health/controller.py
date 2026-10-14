@@ -1,7 +1,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi.responses import PlainTextResponse
 
+from relyxus_api.modules.health.metrics import render_prometheus_metrics
 from relyxus_api.modules.health.schema import LivenessReport, ReadinessReport, ReadinessStatus
 from relyxus_api.modules.health.service import HealthService
 from relyxus_api.shared.http.envelope import SuccessEnvelope, wrap_success
@@ -43,3 +45,21 @@ async def get_readiness(
     if report.status is ReadinessStatus.NOT_READY:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return wrap_success(report)
+
+
+@router.get(
+    "/metrics",
+    summary="Prometheus metrics",
+    description="Text exposition format for scraping (not JSON).",
+    response_class=PlainTextResponse,
+)
+async def get_metrics(
+    request: Request,
+    health_service: HealthServiceDependency,
+) -> PlainTextResponse:
+    report = await health_service.get_readiness()
+    body = render_prometheus_metrics(
+        api_version=request.app.version,
+        readiness=report.status,
+    )
+    return PlainTextResponse(body, media_type="text/plain; version=0.0.4; charset=utf-8")

@@ -10,6 +10,7 @@ resolution-markers = [
 members = [
     "apporine-licensing",
     "relyxus-backend",
+    "relyxus-cli",
 ]
 
 [[package]]
@@ -769,6 +770,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "apporine-licensing" },
+    { name = "relyxus-cli" },
 ]
 
 [package.dev-dependencies]
@@ -781,7 +783,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "apporine-licensing", editable = "packages/licensing" }]
+requires-dist = [
+    { name = "apporine-licensing", editable = "packages/licensing" },
+    { name = "relyxus-cli", editable = "packages/cli" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -791,6 +796,17 @@ dev = [
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "ruff", specifier = ">=0.11" },
 ]
+
+[[package]]
+name = "relyxus-cli"
+version = "0.1.0"
+source = { editable = "packages/cli" }
+dependencies = [
+    { name = "apporine-licensing" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "apporine-licensing", editable = "packages/licensing" }]
 
 [[package]]
 name = "ruff"

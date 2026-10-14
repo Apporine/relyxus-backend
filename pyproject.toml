@@ -3,7 +3,7 @@ name = "relyxus-backend"
 version = "0.1.0"
 description = "Relyxus backend workspace (uv workspace root; not a distributable package)"
 requires-python = ">=3.13"
-dependencies = ["apporine-licensing"]
+dependencies = ["apporine-licensing", "relyxus-cli"]
 
 [dependency-groups]
 dev = [
@@ -18,10 +18,11 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/licensing"]
+members = ["packages/licensing", "packages/cli"]
 
 [tool.uv.sources]
 apporine-licensing = { workspace = true }
+relyxus-cli = { workspace = true }
 
 [tool.ruff]
 target-version = "py313"
@@ -62,7 +63,7 @@ ignore = [
 python_version = "3.13"
 strict = true
 warn_unreachable = true
-mypy_path = "packages/licensing/src:packages/licensing/tests"
+mypy_path = "packages/licensing/src:packages/cli/src:packages/licensing/tests"
 files = ["packages"]
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]

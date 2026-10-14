@@ -29,5 +29,7 @@ uv run pytest              # tests
 | Path | Contents |
 |---|---|
 | `packages/licensing` | `apporine_licensing`: licence schema and offline verifier |
+| `packages/cli` | `relyxus` operations CLI (`uv run relyxus license verify ...`) |
+| `packages/schemas` | JSON Schemas generated from the models |
 | `docs/spec` | Requirements register extracted from the source specifications |
 | `docs/adr` | Architecture decision records |

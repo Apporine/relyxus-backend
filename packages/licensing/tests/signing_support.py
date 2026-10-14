@@ -6,7 +6,7 @@ The real issuer signs with a non-exportable AWS KMS key in the Apporine Control 
 
 from datetime import UTC, datetime
 
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from apporine_licensing.base64url import encode_base64url
@@ -49,4 +49,12 @@ def make_trusted_key(
         public_key=private_key.public_key(),
         valid_from=KEY_VALID_FROM,
         valid_until=valid_until,
+    )
+
+
+def public_key_pem(private_key: ec.EllipticCurvePrivateKey) -> str:
+    return (
+        private_key.public_key()
+        .public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+        .decode("ascii")
     )

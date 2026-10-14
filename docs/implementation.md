@@ -17,7 +17,7 @@ Applied so work could start. Each is overridable; see [ADR-0001](adr/0001-engine
 | Q-04 | Repo laid out as the monorepo's backend half: `packages/`, `services/`, `policy/`, `docs/` | ADR-0001 |
 | Q-14 | PEP 8 naming in Python (snake_case modules/functions, PascalCase classes); context.md feature grouping kept | ADR-0001 |
 | Q-29 | Python 3.13, managed with `uv` workspace | ADR-0001 |
-| Q-30 | Local branches only; nothing pushed, no PRs opened on GitHub until you say so | this file |
+| Q-30 | Branches pushed and PRs raised on GitHub; merged after required CI checks pass | this file |
 | Q-31 | `important/` (confidential source documents) git-ignored, not committed | ADR-0001 |
 | Q-32 | Licence signature ECDSA P-256 / SHA-256 (AWS KMS `ECDSA_SHA_256`) | ADR-0002 |
 | Q-33 | Verifier trusts only a caller-supplied, environment-tagged key set | ADR-0002 |
@@ -33,19 +33,22 @@ Still open and **not** assumed: Q-01, Q-02, Q-03 (no HTTP endpoints built yet), 
 
 **Requirement coverage target:** LIC-1.02, LIC-2.03, LIC-2.04, LIC-2.05, LIC-5.01–5.04, LIC-6.03, LIC-6.04, LIC-7.02–7.04, LIC-12.01, LIC-12.02, LIC-13.01–13.05 (model only), LIC-17.02 (forgery, wrong-customer, downgrade at verify time), LIC-19.01, LIC-19.02, LIC-19.07; MPS-29.01–29.08, MPS-29.11, MPS-29.15–29.17, MPS-29.20 (verifier parts); TSD-23.04, TSD-23.07, TSD-23.11, TSD-23.14; DEP-23.08 (verifier fixtures); MP-13.01, MP-14.01, MP-16.01, MP-19.01.
 
-| # | PR / branch | Scope | Requirement IDs | Status |
+| # | GitHub PR / branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
-| 1 | `docs/requirements-register` | Requirements register + this tracker | (all — traceability) | in review |
-| 2 | `chore/python-workspace-foundation` | uv workspace, Python 3.13, Ruff, mypy, pytest, pre-commit, CI, ADR-0001 | MPS-17.07, MPS-22.19, TSD-6.01, TSD-12.01, TSD-14.02, MP-38.01 | in review |
-| 3 | `feat/license-canonical-json` | ADR-0002, RFC 8785 canonical JSON, golden vectors | LIC-5.03, LIC-19.01, TSD-23.11 | in review |
-| 4 | `feat/license-payload-schema` | Payload/envelope models, typed errors, exported JSON Schemas + drift test | LIC-5.01, LIC-5.02, LIC-5.04, LIC-12.01, LIC-12.02, MPS-29.05, MPS-29.06, MP-19.01 | in review |
-| 5 | `feat/license-signature-verification` | Key set, base64url, ECDSA verify, golden signature vector | LIC-6.03, LIC-6.04, MPS-29.15–29.17, TSD-23.04, TSD-23.07 | in review |
-| 6 | `feat/license-verifier` | Verification pipeline, binding checks, state evaluation (Active/Grace/Expired), grace registry, entitlement access, exhaustive tests | LIC-2.05, LIC-7.02–7.04, LIC-13.x, LIC-19.02, TSD-23.14, MPS-29.04, MPS-29.08, MPS-29.20 | in review |
-| 7 | `feat/license-cli-inspect-verify` | `relyxus license inspect|verify` | LIC-15.03, DEP-23.02 | planned |
-| 8 | `feat/license-store` | install/replace/status, Superseded history, downgrade/replay protection (needs DB foundation) | LIC-7.07, LIC-12.03, LIC-17.02, DEP-23.07 | blocked (DB foundation) |
-| 9 | `feat/license-runtime-integration` | Startup + periodic verification, embedded key pinning, safe degradation | LIC-10.01, MPS-6A.11, MPS-29.04 | blocked (Q-07a, Q-33) |
-| 10 | `feat/license-connected-refresh` | Outbound signed status client, cache, outage handling | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | planned (Licensing phase 5) |
-| 11 | `feat/license-airgap-import` | Offline import/renewal tooling | LIC-11.02, LIC-19.04 | planned (Licensing phase 6) |
+| 1 | [#1](https://github.com/Apporine/relyxus-backend/pull/1) `docs/requirements-register` | Requirements register + this tracker | (all — traceability) | merged |
+| 2 | [#2](https://github.com/Apporine/relyxus-backend/pull/2) `chore/python-workspace-foundation` | uv workspace, Python 3.13, Ruff, mypy, pytest, pre-commit, CI, ADR-0001 | MPS-17.07, MPS-22.19, TSD-6.01, TSD-12.01, TSD-14.02, MP-38.01 | merged |
+| 3 | [#3](https://github.com/Apporine/relyxus-backend/pull/3) `feat/license-canonical-json` | ADR-0002, RFC 8785 canonical JSON, golden vectors | LIC-5.03, LIC-19.01, TSD-23.11 | merged |
+| 4 | [#4](https://github.com/Apporine/relyxus-backend/pull/4) `feat/license-payload-schema` | Payload/envelope models, typed errors, exported JSON Schemas + drift test | LIC-5.01, LIC-5.02, LIC-5.04, LIC-12.01, LIC-12.02, MPS-29.05, MPS-29.06, MP-19.01 | merged |
+| 5 | [#5](https://github.com/Apporine/relyxus-backend/pull/5) `feat/license-signature-verification` | Key set, base64url, ECDSA verify, golden signature vector | LIC-6.03, LIC-6.04, MPS-29.15–29.17, TSD-23.04, TSD-23.07 | merged |
+| 6 | [#6](https://github.com/Apporine/relyxus-backend/pull/6) `feat/license-verifier` | Verification pipeline, binding checks, state evaluation, grace registry, entitlement access | LIC-2.05, LIC-7.02–7.04, LIC-13.x, LIC-19.02, TSD-23.14, MPS-29.04, MPS-29.08, MPS-29.20 | merged |
+| 7 | `feat/license-key-set-document` | Versioned trusted key-set file format + schema + loader | LIC-6.04, DEP-23.01, TSD-23.04 | in review |
+| 8 | `feat/license-cli-inspect-verify` | `relyxus license inspect\|verify` | LIC-15.03, DEP-23.02 | planned |
+| 9 | `feat/license-store` | install/replace/status, Superseded history, downgrade/replay protection (needs DB foundation) | LIC-7.07, LIC-12.03, LIC-17.02, DEP-23.07 | blocked (DB foundation) |
+| 10 | `feat/license-runtime-integration` | Startup + periodic verification, embedded key pinning, safe degradation | LIC-10.01, MPS-6A.11, MPS-29.04 | blocked (Q-07a, Q-33) |
+| 11 | `feat/license-connected-refresh` | Outbound signed status client, cache, outage handling | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | planned (Licensing phase 5) |
+| 12 | `feat/license-airgap-import` | Offline import/renewal tooling | LIC-11.02, LIC-19.04 | planned (Licensing phase 6) |
+
+GitHub PR #7 was a temporary CI diagnostic, closed unmerged.
 
 ### Progress log
 
@@ -70,3 +73,6 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 ## Other features
 
 Not started. Feature breakdown (step 3) waits on the remaining blocking questions in register section E.
+
+- **2026-10-14 — CI and merges** — Actions only started after the workflow scope fix; required checks `lint, types, tests` and `secret scan` set on `develop` (repo made public). PRs #1–#6 squash-merged in order, each after green checks (#1 docs-only merged with admin bypass, as instructed).
+- **PR 7 — 2026-10-14** — `apporine_licensing.key_set_document`: closed, versioned trusted key-set file (`key_id`, `environment`, `algorithm`, UTC signing window, public PEM), loader returning `TrustedKeySet`, all failures as `KeySetConfigurationError`; schema `trusted-key-set.v1.schema.json`; ADR-0002 §5.1. **Covered:** LIC-6.04 (versioned key set with key IDs), DEP-23.01 (key material shipped as data, not code), TSD-23.04. **Results:** ruff, mypy strict, pytest 177 passed.

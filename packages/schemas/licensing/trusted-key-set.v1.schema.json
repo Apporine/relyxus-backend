@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "KeyEnvironment": {
+      "enum": [
+        "production",
+        "staging",
+        "development"
+      ],
+      "title": "KeyEnvironment",
+      "type": "string"
+    },
+    "SignatureAlgorithm": {
+      "enum": [
+        "ECDSA_P256_SHA256"
+      ],
+      "title": "SignatureAlgorithm",
+      "type": "string"
+    },
+    "TrustedKeyEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "$ref": "#/$defs/SignatureAlgorithm"
+        },
+        "environment": {
+          "$ref": "#/$defs/KeyEnvironment"
+        },
+        "key_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,127}$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "public_key_pem": {
+          "minLength": 1,
+          "title": "Public Key Pem",
+          "type": "string"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "title": "Valid From",
+          "type": "string"
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Until"
+        }
+      },
+      "required": [
+        "key_id",
+        "environment",
+        "algorithm",
+        "valid_from",
+        "public_key_pem"
+      ],
+      "title": "TrustedKeyEntry",
+      "type": "object"
+    }
+  },
+  "$id": "urn:apporine:licensing:trusted-key-set:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "key_set_version": {
+      "const": 1,
+      "title": "Key Set Version",
+      "type": "integer"
+    },
+    "keys": {
+      "items": {
+        "$ref": "#/$defs/TrustedKeyEntry"
+      },
+      "minItems": 1,
+      "title": "Keys",
+      "type": "array"
+    }
+  },
+  "required": [
+    "key_set_version",
+    "keys"
+  ],
+  "title": "TrustedKeySetV1",
+  "type": "object"
+}

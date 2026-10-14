@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import AnyHttpUrl, SecretStr
 
 from api_test_support import TEST_OIDC_AUDIENCE, TEST_OIDC_ISSUER
@@ -49,7 +50,7 @@ def database_url() -> str:
     url = require_test_database_url()
     migrate_and_reset(url)
 
-    async def bind_customer(session) -> None:
+    async def bind_customer(session: AsyncSession) -> None:
         await seed_two_organisations_with_members(session)
         org = await session.get(Organization, ORG_B)
         assert org is not None

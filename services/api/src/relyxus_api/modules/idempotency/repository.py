@@ -10,12 +10,13 @@ class IdempotencyRepository:
     async def find_record(
         self, session: AsyncSession, organization_id: uuid.UUID, idempotency_key: str
     ) -> IdempotencyRecord | None:
-        return await session.scalar(
+        row: IdempotencyRecord | None = await session.scalar(
             select(IdempotencyRecord).where(
                 IdempotencyRecord.organization_id == organization_id,
                 IdempotencyRecord.idempotency_key == idempotency_key,
             )
         )
+        return row
 
     async def add_record(
         self, session: AsyncSession, record: IdempotencyRecord

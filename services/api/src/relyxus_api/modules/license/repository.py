@@ -11,12 +11,13 @@ class LicenseRepository:
     async def find_current(
         self, session: AsyncSession, organization_id: uuid.UUID
     ) -> OrganizationLicense | None:
-        return await session.scalar(
+        row: OrganizationLicense | None = await session.scalar(
             select(OrganizationLicense).where(
                 OrganizationLicense.organization_id == organization_id,
                 OrganizationLicense.is_current.is_(True),
             )
         )
+        return row
 
     async def supersede_current(
         self, session: AsyncSession, organization_id: uuid.UUID, when: datetime

@@ -19,6 +19,13 @@ from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessS
 from relyxus_api.shared.auth.dependencies import AuthenticatedPrincipalDependency
 from relyxus_api.shared.constants import WORKSPACE_HEADER
 
+__all__ = [
+    "WORKSPACE_HEADER",
+    "WorkspaceSession",
+    "WorkspaceSessionDependency",
+    "open_workspace_session",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class WorkspaceSession:

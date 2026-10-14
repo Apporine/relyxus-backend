@@ -75,6 +75,9 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | in review |
 | A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | in review |
 | A7 | `feat/api-audit-hash-chain` | Append-only `audit_events`, SHA-256 hash chain per workspace/org, verify | MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6, Q-19 | in review |
+| A8 | `feat/api-audit-endpoints` | `GET /api/v1/audit-events`, chain verification HTTP | MPS-14.16, ADR-0003 §6 | in review |
+| A9 | `feat/api-idempotency-keys` | `Idempotency-Key` store, idempotent `POST /api/v1/audit-events` | MPS-22A.05, ADR-0003 §5 | in review |
+| A10 | `feat/api-etag-preconditions` | Weak `ETag` + `If-Match` (412) on `GET /workspaces/current` | MPS-22A.06, ADR-0003 §5 | in review |
 
 ### Progress log
 
@@ -217,6 +220,21 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - **Requirements covered:** MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6 (Q-19). Evidence ledger remains a separate future chain.
 
   **Results:** ruff and mypy strict pass; pytest 270 passed against local PostgreSQL (integration). Tests cover model/migration drift, workspace and org chains, cross-tenant append blocked, immutability triggers, and offline tamper detection.
+
+- **A8 — 2026-10-14** — Audit log HTTP read API.
+  - **`GET /api/v1/audit-events`:** workspace-scoped cursor pagination on `sequence`.
+  - **`GET /api/v1/audit-events/chain-verification`:** offline hash-chain validation report.
+  - Contract **0.4.1**; integration tests in `test_audit_endpoints.py`.
+
+- **A9 — 2026-10-14** — Idempotent audit append.
+  - **`idempotency_records` table** (migration `0006`) with tenant RLS.
+  - **`POST /api/v1/audit-events`:** requires `Idempotency-Key`, replays stored `{success, data}` on retry; 409 on key/body mismatch.
+  - Contract **0.4.2**; tests in `test_idempotency_audit.py`.
+
+- **A10 — 2026-10-14** — Optimistic concurrency primitives.
+  - **`PreconditionFailedError` (412)** and `assert_if_match`.
+  - **`GET /api/v1/workspaces/current`:** returns weak `ETag` from `updated_at`; stale `If-Match` → 412.
+  - Contract **0.4.3**; tests in `test_etag_preconditions.py` and `test_preconditions_unit.py`.
 
 ---
 

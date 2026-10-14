@@ -29,5 +29,7 @@ uv run pytest              # tests
 | Path | Contents |
 |---|---|
 | `packages/licensing` | `apporine_licensing`: licence schema and offline verifier |
+| `services/api` | `relyxus_api`: FastAPI REST API (`RELYXUS_ENVIRONMENT=local RELYXUS_PUBLIC_BASE_URL=http://localhost:8000 uv run uvicorn --factory relyxus_api.app:build_app`) |
+| `packages/schemas` | Generated JSON Schemas and the OpenAPI contract |
 | `docs/spec` | Requirements register extracted from the source specifications |
 | `docs/adr` | Architecture decision records |

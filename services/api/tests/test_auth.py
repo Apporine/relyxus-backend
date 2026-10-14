@@ -11,7 +11,12 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
-from api_test_support import TEST_OIDC_AUDIENCE, TEST_OIDC_ISSUER, make_settings
+from api_test_support import (
+    TEST_OIDC_AUDIENCE,
+    TEST_OIDC_ISSUER,
+    bind_token_only_identity,
+    make_settings,
+)
 from relyxus_api.app import create_app
 from relyxus_api.shared.auth.access_token import (
     AccessTokenVerifier,
@@ -64,6 +69,7 @@ def _verifier(resolver: Any = None) -> AccessTokenVerifier:
 @pytest.fixture
 def client() -> TestClient:
     app = create_app(make_settings())
+    bind_token_only_identity(app)
     app.state.access_token_verifier = _verifier()
     return TestClient(app)
 
@@ -81,6 +87,7 @@ def test_valid_token_returns_the_verified_identity(client: TestClient) -> None:
     assert data["subject"] == "5c2f6b1e-0d4a-4f8e-9a7b-3c1d2e4f5a6b"
     assert data["email"] == "sre.lead@bank.example"
     assert data["authenticated_at"] is not None
+    assert data["is_provisioned"] is False
 
 
 def test_missing_token_is_401_with_bearer_challenge(client: TestClient) -> None:

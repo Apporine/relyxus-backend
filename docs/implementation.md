@@ -88,6 +88,9 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A15 | `feat/api-prometheus-metrics` | `GET /metrics` Prometheus text exposition | TSD-11.01, MP-28.01 | in review |
 | — | `feat/dev-keycloak-compose` | Keycloak 26 in Compose + realm import for local OIDC | TSD-9.01, Q-21 | in review |
 | — | `chore/policy-opa-skeleton` | `policy/` placeholder for future OPA bundles | MPS-22.x | in review |
+| A16 | `feat/api-org-customer-id` | `organizations.customer_id` + licence install binding | LIC-17.02, MPS-29.06 | in review |
+| A17 | `feat/api-license-readiness-probe` | Optional `commercial_license` readiness probe | LIC-10.01, MPS-6A.11 | in review |
+| A18 | `feat/api-policy-engine-stub` | `GET /policy/engine` stub status | MPS-22.x | in review |
 
 ### Progress log
 
@@ -267,6 +270,12 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 - **Dev — 2026-10-14** — Keycloak in Docker Compose with imported `relyxus` realm (`infra/keycloak/`).
 
 - **Dev — 2026-10-14** — `policy/` README placeholder for OPA bundles; README tooling table.
+
+- **A16 — 2026-10-14** — Organisation `customer_id` (migration 0008); licence install binds or rejects mismatch (`LICENSE_CUSTOMER_MISMATCH`).
+
+- **A17 — 2026-10-14** — `RELYXUS_LICENSE_READINESS_ORGANIZATION_ID` adds `commercial_license` to `/ready`.
+
+- **A18 — 2026-10-14** — `GET /api/v1/policy/engine` reports stub mode and optional bundle path. Contract **0.5.0**.
 
 ---
 

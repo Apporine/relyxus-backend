@@ -11,6 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from relyxus_api.shared.constants import CORRELATION_HEADER
 from relyxus_api.shared.errors.app_errors import AppError
 from relyxus_api.shared.errors.problem_details import (
     PROBLEM_JSON_MEDIA_TYPE,
@@ -18,7 +19,6 @@ from relyxus_api.shared.errors.problem_details import (
     ProblemDetails,
     build_problem_type,
 )
-from relyxus_api.shared.constants import CORRELATION_HEADER
 from relyxus_api.shared.observability.correlation import get_correlation_id
 
 logger = logging.getLogger(__name__)

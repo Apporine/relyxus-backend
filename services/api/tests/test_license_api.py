@@ -14,7 +14,8 @@ from relyxus_api.app import create_app
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER
 from relyxus_api.shared.auth.access_token import AuthenticatedPrincipal
 from relyxus_api.shared.config.settings import Environment, Settings
-from tenancy_fixtures import WORKSPACE_B1, seed_two_organisations_with_members
+from tenancy_fixtures import ORG_B, WORKSPACE_B1, seed_two_organisations_with_members
+from relyxus_api.modules.tenancy.model import Organization
 
 pytestmark = pytest.mark.integration
 
@@ -42,7 +43,13 @@ def _license_settings(database_url: str) -> Settings:
 def database_url() -> str:
     url = require_test_database_url()
     migrate_and_reset(url)
-    run_as_superuser(url, seed_two_organisations_with_members)
+    async def bind_customer(session) -> None:
+        await seed_two_organisations_with_members(session)
+        org = await session.get(Organization, ORG_B)
+        assert org is not None
+        org.customer_id = uuid.UUID(GOLDEN_VECTOR["payload"]["customer_id"])
+
+    run_as_superuser(url, bind_customer)
     return url
 
 

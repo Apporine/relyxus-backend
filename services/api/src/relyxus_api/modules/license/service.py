@@ -9,7 +9,12 @@ from apporine_licensing.verifier import LicenseVerifier, VerifiedLicense
 from relyxus_api.modules.license.model import OrganizationLicense
 from relyxus_api.modules.license.repository import LicenseRepository
 from relyxus_api.modules.license.schema import LicenseStatusView
-from relyxus_api.shared.errors.app_errors import DependencyUnavailableError, NotFoundError
+from relyxus_api.modules.tenancy.model import Organization
+from relyxus_api.shared.errors.app_errors import (
+    ConflictError,
+    DependencyUnavailableError,
+    NotFoundError,
+)
 from relyxus_api.shared.utils.ids import new_uuid7
 
 
@@ -19,6 +24,10 @@ class LicenseNotConfiguredError(DependencyUnavailableError):
 
 class NoLicenseInstalledError(NotFoundError):
     code: ClassVar[str] = "NO_LICENSE_INSTALLED"
+
+
+class LicenseCustomerMismatchError(ConflictError):
+    code: ClassVar[str] = "LICENSE_CUSTOMER_MISMATCH"
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +76,16 @@ class LicenseService:
     ) -> LicenseStatusView:
         evaluated_at = now or datetime.now(UTC)
         verified = self._verify_artifact(runtime, artifact.encode(), evaluated_at)
+        organization = await session.get(Organization, organization_id)
+        if organization is None:
+            raise RuntimeError("Organisation row missing during licence install")
+        licence_customer = uuid.UUID(str(verified.payload.customer_id))
+        if organization.customer_id is None:
+            organization.customer_id = licence_customer
+        elif organization.customer_id != licence_customer:
+            raise LicenseCustomerMismatchError(
+                "This licence belongs to a different commercial customer."
+            )
         await self._repository.mark_superseded_now(session, organization_id)
         record = OrganizationLicense(
             id=new_uuid7(),

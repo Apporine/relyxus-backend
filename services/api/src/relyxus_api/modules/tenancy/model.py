@@ -37,6 +37,7 @@ class Organization(RecordColumns, Base):
     )
 
     name: Mapped[str] = mapped_column(String(NAME_MAX_LENGTH))
+    customer_id: Mapped[uuid.UUID | None]
     deployment_mode: Mapped[str] = mapped_column(String(20))
     default_region: Mapped[str] = mapped_column(String(REGION_MAX_LENGTH))
 

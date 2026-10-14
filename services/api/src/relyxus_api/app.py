@@ -17,7 +17,13 @@ from relyxus_api.modules.health.service import DependencyProbe, HealthService
 from relyxus_api.modules.identity.controller import router as identity_router
 from relyxus_api.modules.license.controller import router as license_router
 from relyxus_api.modules.license.key_set_loader import load_key_set_from_golden_vector
-from relyxus_api.modules.license.service import LicenseRuntime
+from relyxus_api.modules.license.service import (
+    LicenseRuntime,
+    LicenseService,
+    NoLicenseInstalledError,
+)
+from relyxus_api.modules.policy.controller import router as policy_router
+from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
 from relyxus_api.shared.auth.access_token import AccessTokenVerifier, JwksSigningKeyResolver
 from relyxus_api.shared.config.settings import Environment, Settings, load_settings
 from relyxus_api.shared.db.engine import (
@@ -36,9 +42,10 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.4.8"
+API_CONTRACT_VERSION = "0.5.0"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
+LICENSE_READINESS_PROBE_NAME = "commercial_license"
 DOCS_PATH = "/docs"
 OPENAPI_PATH = "/docs.json"
 
@@ -65,7 +72,6 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.settings = settings
     app.state.database_engine = database_engine
     app.state.session_factory = create_session_factory(database_engine)
-    app.state.health_service = HealthService(_build_probes(settings, database_engine))
     app.state.access_token_verifier = AccessTokenVerifier(
         key_resolver=JwksSigningKeyResolver(settings.resolved_jwks_url),
         issuer=settings.oidc_issuer_url,
@@ -74,10 +80,11 @@ def create_app(settings: Settings) -> FastAPI:
         clock_leeway_seconds=settings.oidc_clock_leeway_seconds,
     )
     app.state.license_runtime = _build_license_runtime(settings)
+    app.state.health_service = HealthService(_build_probes(settings, database_engine, app))
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router, responses=PROBLEM_RESPONSES)
-    for router in (identity_router, access_router, audit_router, license_router):
+    for router in (identity_router, access_router, audit_router, license_router, policy_router):
         app.include_router(router, responses=PROBLEM_RESPONSES | AUTHENTICATED_RESPONSES)
     return app
 
@@ -102,21 +109,43 @@ def _build_license_runtime(settings: Settings) -> LicenseRuntime | None:
     return LicenseRuntime(verifier=verifier)
 
 
-def _build_probes(settings: Settings, database_engine: AsyncEngine) -> list[DependencyProbe]:
+def _build_probes(
+    settings: Settings, database_engine: AsyncEngine, app: FastAPI
+) -> list[DependencyProbe]:
     timeout = settings.database_probe_timeout_seconds
     probes = [
         DependencyProbe(
             DATABASE_PROBE_NAME, partial(is_database_reachable, database_engine, timeout)
         )
     ]
-    # Local development may use a superuser; every other environment must not, because a
-    # superuser or BYPASSRLS role silently disables tenant isolation (MP-10.01).
     if settings.environment is not Environment.LOCAL:
         probes.append(
             DependencyProbe(
                 ROW_LEVEL_SECURITY_PROBE_NAME,
                 partial(is_row_level_security_enforced, database_engine, timeout),
             )
+        )
+    if settings.license_readiness_organization_id is not None:
+        organization_id = settings.license_readiness_organization_id
+
+        async def commercial_license_ready() -> bool:
+            runtime = app.state.license_runtime
+            if runtime is None:
+                return False
+            session_factory = app.state.session_factory
+            async with session_factory() as session, session.begin():
+                await apply_tenant_context(
+                    session,
+                    TenantContext(organization_id=organization_id, workspace_id=None),
+                )
+                try:
+                    view = await LicenseService().status(session, organization_id, runtime)
+                except NoLicenseInstalledError:
+                    return False
+                return view.state in ("active", "grace")
+
+        probes.append(
+            DependencyProbe(LICENSE_READINESS_PROBE_NAME, commercial_license_ready)
         )
     return probes
 

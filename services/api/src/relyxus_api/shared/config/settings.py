@@ -4,6 +4,7 @@ Every value comes from `RELYXUS_*` environment variables. A missing or invalid r
 value raises immediately so a misconfigured instance never starts serving traffic.
 """
 
+import uuid
 from enum import StrEnum
 
 from pydantic import AnyHttpUrl, Field, NonNegativeInt, PositiveFloat, SecretStr, field_validator
@@ -40,6 +41,8 @@ class Settings(BaseSettings):
     license_customer_id: str | None = None
     license_deployment_id: str | None = None
     license_key_environment: str = "production"
+    license_readiness_organization_id: uuid.UUID | None = None
+    policy_bundle_path: str | None = None
 
     @field_validator("database_url")
     @classmethod

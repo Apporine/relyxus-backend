@@ -3,7 +3,7 @@ name = "relyxus-backend"
 version = "0.1.0"
 description = "Relyxus backend workspace (uv workspace root; not a distributable package)"
 requires-python = ">=3.13"
-dependencies = ["apporine-licensing", "relyxus-api"]
+dependencies = ["apporine-licensing", "relyxus-api", "relyxus-cli"]
 
 [dependency-groups]
 dev = [
@@ -19,11 +19,12 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/licensing", "services/api"]
+members = ["packages/licensing", "packages/cli", "services/api"]
 
 [tool.uv.sources]
 apporine-licensing = { workspace = true }
 relyxus-api = { workspace = true }
+relyxus-cli = { workspace = true }
 
 [tool.ruff]
 target-version = "py313"
@@ -67,7 +68,7 @@ max-args = 6
 python_version = "3.13"
 strict = true
 warn_unreachable = true
-mypy_path = "packages/licensing/src:services/api/src:packages/licensing/tests:services/api/tests"
+mypy_path = "packages/licensing/src:packages/cli/src:services/api/src:packages/licensing/tests:services/api/tests"
 files = ["packages", "services"]
 explicit_package_bases = true
 # pytest requires the name conftest.py; mypy cannot check two same-named modules in one run.
@@ -81,7 +82,7 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages", "services"]
-pythonpath = ["packages/licensing/tests", "services/api/tests"]
+pythonpath = ["packages/licensing/tests", "packages/cli/tests", "services/api/tests"]
 addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
 xfail_strict = true
 markers = [

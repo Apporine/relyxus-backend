@@ -72,7 +72,8 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | in review |
 | A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | in review |
 | A6a | `feat/api-access-token-auth` | Keycloak OIDC access-token verification, 401 challenges, `GET /api/v1/me` | MPS-14.10 (token side), TSD-9.01, ADR-0003 §7, context.md §10 | in review |
-| A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | planned |
+| A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | in review |
+| A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | planned |
 
 ### Progress log
 
@@ -158,6 +159,33 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - **Refactor:** the problem-response builder is split in two.
 
   **Results:** ruff and mypy strict (73 files) pass; pytest 241 passed against local PostgreSQL. The auth tests reject a token signed by another key, a wrong issuer, a wrong audience, expiry, not-before, missing `sub`, missing `exp`, `alg: none`, HS256 algorithm confusion and malformed tokens. They also cover leeway, JWKS `kid` selection with an unknown `kid` rejected, and the OpenAPI security declaration.
+
+- **A6b — 2026-10-14** — Users, workspace memberships and the access chain.
+  - **Tables:**
+    - `users` (MPS-20.04): issuer + subject unique, email, display name, status active/suspended/deprovisioned, last sign-in.
+    - `workspace_memberships`: one row per role; the nine built-in roles are enforced by a CHECK.
+    - A composite foreign key makes a membership pointing at another org's workspace impossible.
+  - **Migration `0003`:** forced RLS on both tables.
+    - A user row is visible to its own identity, to its ID, or to an org it belongs to.
+    - A membership row is visible within its org, or to its own user.
+    - Writes need org context, or self for users.
+  - **`WorkspaceAccessService.open_workspace`:** verified identity → provisioned user → active status → grants in the requested workspace → transaction-scoped tenant context.
+    - **Same denial for unknown and forbidden workspaces,** so IDs can't be probed.
+    - **Issuer + subject is the identity:** the same `sub` from another issuer is a different person.
+  - **`WorkspaceSessionDependency`:** one transaction per request, using `Depends(scope="function")` so the commit finishes before the response is sent.
+  - **Refactor:** `set_transaction_settings` is shared by tenant and identity context.
+  - **Requirements covered:** MP-10.01 (tenant scope only from verified membership), MPS-28.10, MPS-20.04, MPS-20.06 (direct grants; team grants come with teams), MPS-14.02–14.09 (role vocabulary; the can/cannot rules come with OPA).
+
+  **Results:** ruff and mypy strict (81 files) pass; pytest 251 passed against local PostgreSQL. Tests, run as a non-superuser role:
+  - roles and tenant scope for a member
+  - foreign and unknown workspaces fail identically
+  - unprovisioned identity
+  - another issuer is a different identity
+  - suspended user denied despite grants
+  - identity context reveals only own user and grants
+  - app role cannot create users for others
+  - cross-org membership rejected by the composite foreign key
+  - HTTP flow: 401 without token, 422 without or with a bad header, 403 for a foreign workspace, 200 with roles
 
 ---
 

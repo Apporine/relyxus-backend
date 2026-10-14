@@ -15,6 +15,20 @@ permissions:
   contents: read
 
 jobs:
+  migrations:
+    name: migration heads
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Assert a single Alembic head
+        run: uv run python scripts/check_single_alembic_head.py
+
   python:
     name: lint, types, tests
     runs-on: ubuntu-latest

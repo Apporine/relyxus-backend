@@ -57,6 +57,9 @@ ignore = [
     "TRY003", # domain errors carry explanatory messages by design
 ]
 
+[tool.ruff.lint.pylint]
+max-args = 6
+
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "PLR2004"]
 
@@ -64,9 +67,11 @@ ignore = [
 python_version = "3.13"
 strict = true
 warn_unreachable = true
-mypy_path = "packages/licensing/src:services/api/src:packages/licensing/tests"
+mypy_path = "packages/licensing/src:services/api/src:packages/licensing/tests:services/api/tests"
 files = ["packages", "services"]
 explicit_package_bases = true
+# pytest requires the name conftest.py; mypy cannot check two same-named modules in one run.
+exclude = ['(^|/)conftest\.py$']
 plugins = ["pydantic.mypy"]
 
 [tool.pydantic-mypy]
@@ -76,6 +81,6 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages", "services"]
-pythonpath = ["packages/licensing/tests"]
+pythonpath = ["packages/licensing/tests", "services/api/tests"]
 addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
 xfail_strict = true

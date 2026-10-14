@@ -1,0 +1,12 @@
+{
+  "key_set_version": 1,
+  "keys": [
+    {
+      "algorithm": "ECDSA_P256_SHA256",
+      "environment": "production",
+      "key_id": "apporine-license-golden-1",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEy7RsRP9KAm0dyYoN4sWpLmTZitnE\nDLY4rT+xb2UyZUZz9kzMigXOc2LcSsj+YnVCmN+XwuykkDahdRe7NqxKTA==\n-----END PUBLIC KEY-----\n",
+      "valid_from": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

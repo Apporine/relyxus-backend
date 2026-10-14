@@ -27,6 +27,7 @@ pytestmark = pytest.mark.integration
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN_VECTOR_PATH = REPO_ROOT / "packages/licensing/tests/vectors/golden-license-v1.json"
+GOLDEN_KEY_SET_PATH = REPO_ROOT / "packages/licensing/tests/vectors/golden-trusted-key-set-v1.json"
 GOLDEN_VECTOR = json.loads(GOLDEN_VECTOR_PATH.read_text(encoding="utf-8"))
 
 
@@ -38,7 +39,7 @@ def _license_settings(database_url: str) -> Settings:
         database_probe_timeout_seconds=1.0,
         oidc_issuer_url=TEST_OIDC_ISSUER,
         oidc_audience=TEST_OIDC_AUDIENCE,
-        license_trusted_key_vector_path=str(GOLDEN_VECTOR_PATH),
+        license_trusted_key_set_path=str(GOLDEN_KEY_SET_PATH),
         license_customer_id=GOLDEN_VECTOR["payload"]["customer_id"],
         license_deployment_id="golden-bank-prod",
         license_key_environment="production",

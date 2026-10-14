@@ -18,10 +18,14 @@ from tenancy_fixtures import ORG_B, seed_two_organisations_with_members
 
 pytestmark = pytest.mark.integration
 
-GOLDEN_PATH = (
+GOLDEN_LICENSE_PATH = (
     Path(__file__).resolve().parents[3] / "packages/licensing/tests/vectors/golden-license-v1.json"
 )
-GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
+GOLDEN_KEY_SET_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "packages/licensing/tests/vectors/golden-trusted-key-set-v1.json"
+)
+GOLDEN = json.loads(GOLDEN_LICENSE_PATH.read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="module")
@@ -47,7 +51,7 @@ def _settings(database_url: str, org_id: uuid.UUID) -> Settings:
         database_probe_timeout_seconds=1.0,
         oidc_issuer_url=TEST_OIDC_ISSUER,
         oidc_audience=TEST_OIDC_AUDIENCE,
-        license_trusted_key_vector_path=str(GOLDEN_PATH),
+        license_trusted_key_set_path=str(GOLDEN_KEY_SET_PATH),
         license_customer_id=GOLDEN["payload"]["customer_id"],
         license_deployment_id="golden-bank-prod",
         license_key_environment="production",

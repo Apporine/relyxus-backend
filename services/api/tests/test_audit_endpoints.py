@@ -10,6 +10,7 @@ from api_test_support import make_settings
 from db_test_support import migrate_and_reset, require_test_database_url, run_as_superuser
 from relyxus_api.app import create_app
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER
+from relyxus_api.modules.access.model import WorkspaceMembership
 from relyxus_api.modules.audit.model import ActorType, AuditOutcome
 from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
@@ -32,6 +33,14 @@ def database_url() -> str:
 
     async def seed(session: AsyncSession) -> None:
         await seed_two_organisations_with_members(session)
+        session.add(
+            WorkspaceMembership(
+                organization_id=ORG_A,
+                workspace_id=WORKSPACE_A1,
+                user_id=AMIRA,
+                role="auditor",
+            )
+        )
         await apply_tenant_context(
             session, TenantContext(organization_id=ORG_A, workspace_id=WORKSPACE_A1)
         )

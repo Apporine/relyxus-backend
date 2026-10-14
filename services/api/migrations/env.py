@@ -8,6 +8,7 @@ from alembic import context
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from relyxus_api.models import __all__ as registered_models  # noqa: F401  (populates metadata)
 from relyxus_api.shared.db.base import Base
 
 DATABASE_URL_VARIABLE = "RELYXUS_DATABASE_URL"

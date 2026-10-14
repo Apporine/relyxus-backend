@@ -16,7 +16,7 @@ from relyxus_api.modules.health.controller import router as health_router
 from relyxus_api.modules.health.service import DependencyProbe, HealthService
 from relyxus_api.modules.identity.controller import router as identity_router
 from relyxus_api.modules.license.controller import router as license_router
-from relyxus_api.modules.license.key_set_loader import load_key_set_from_golden_vector
+from relyxus_api.modules.license.key_set_loader import load_trusted_key_set_file
 from relyxus_api.modules.license.service import (
     LicenseRuntime,
     LicenseService,
@@ -91,12 +91,12 @@ def create_app(settings: Settings) -> FastAPI:
 
 def _build_license_runtime(settings: Settings) -> LicenseRuntime | None:
     if (
-        settings.license_trusted_key_vector_path is None
+        settings.license_trusted_key_set_path is None
         or settings.license_customer_id is None
         or settings.license_deployment_id is None
     ):
         return None
-    key_set = load_key_set_from_golden_vector(Path(settings.license_trusted_key_vector_path))
+    key_set = load_trusted_key_set_file(Path(settings.license_trusted_key_set_path))
     verifier = LicenseVerifier(
         key_set=key_set,
         installation=InstallationIdentity(

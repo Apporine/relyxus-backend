@@ -45,10 +45,6 @@ def database_url() -> str:
 
 
 def _settings(database_url: str) -> Settings:
-    vector_path = (
-        Path(__file__).resolve().parents[3]
-        / "packages/licensing/tests/vectors/golden-license-v1.json"
-    )
     return Settings(
         environment=Environment.LOCAL,
         public_base_url=AnyHttpUrl("https://api.example.test"),
@@ -56,7 +52,10 @@ def _settings(database_url: str) -> Settings:
         database_probe_timeout_seconds=1.0,
         oidc_issuer_url=TEST_OIDC_ISSUER,
         oidc_audience=TEST_OIDC_AUDIENCE,
-        license_trusted_key_vector_path=str(vector_path),
+        license_trusted_key_set_path=str(
+            Path(__file__).resolve().parents[3]
+            / "packages/licensing/tests/vectors/golden-trusted-key-set-v1.json"
+        ),
         license_customer_id=GOLDEN_VECTOR["payload"]["customer_id"],
         license_deployment_id="golden-bank-prod",
         license_key_environment="production",

@@ -484,6 +484,84 @@
         "title": "ReadinessStatus",
         "type": "string"
       },
+      "RecordAuditEventRequest": {
+        "properties": {
+          "action": {
+            "maxLength": 100,
+            "title": "Action",
+            "type": "string"
+          },
+          "after_state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After State"
+          },
+          "before_state": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before State"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AuditOutcome"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "target_type": {
+            "maxLength": 64,
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "target_type",
+          "outcome"
+        ],
+        "title": "RecordAuditEventRequest",
+        "type": "object"
+      },
+      "SuccessEnvelope_AuditEventSummary_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuditEventSummary"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[AuditEventSummary]",
+        "type": "object"
+      },
       "SuccessEnvelope_ChainVerificationReport_": {
         "properties": {
           "data": {
@@ -674,7 +752,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.4.1"
+    "version": "0.4.2"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -789,6 +867,106 @@
           }
         ],
         "summary": "List audit events for the current workspace",
+        "tags": [
+          "audit"
+        ]
+      },
+      "post": {
+        "description": "Appends one hash-chained audit row for `X-Relyxus-Workspace-Id`. Requires `Idempotency-Key` so retries replay the same response.",
+        "operationId": "record_audit_event_api_v1_audit_events_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordAuditEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_AuditEventSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Record an audit event in the current workspace",
         "tags": [
           "audit"
         ]

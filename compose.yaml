@@ -1,0 +1,35 @@
+# Local development dependencies only (TSD-12.01: Compose is never production).
+# Usage: docker compose up -d   then copy .env.example to .env
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin-local
+      KC_HTTP_PORT: 8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/keycloak/realm-relyxus.json:/opt/keycloak/data/import/realm-relyxus.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: relyxus
+      POSTGRES_PASSWORD: relyxus-local
+      POSTGRES_DB: relyxus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relyxus -d relyxus"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

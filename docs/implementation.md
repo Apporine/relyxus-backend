@@ -70,10 +70,27 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
 | A1 | `feat/api-service-skeleton` | Settings (fail fast), app factory, `/health`, `/ready`, `/docs`, `/docs.json`, OpenAPI export + drift test, ADR-0003 | TSD-11.01 (probes), MP-28.01, MPS-22A.03 (adapted), MP-9.01, context.md §6/§11 | in review |
-| A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | planned |
-| A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | planned |
-| A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | planned |
-| A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | planned |
+| A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | in review |
+| A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | in review |
+| A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | in review |
+| A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | in review |
+| A6a | `feat/api-access-token-auth` | Keycloak OIDC access-token verification, 401 challenges, `GET /api/v1/me` | MPS-14.10 (token side), TSD-9.01, ADR-0003 §7, context.md §10 | in review |
+| A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | in review |
+| A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | in review |
+| A7 | `feat/api-audit-hash-chain` | Append-only `audit_events`, SHA-256 hash chain per workspace/org, verify | MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6, Q-19 | in review |
+| A8 | `feat/api-audit-endpoints` | `GET /api/v1/audit-events`, chain verification HTTP | MPS-14.16, ADR-0003 §6 | in review |
+| A9 | `feat/api-idempotency-keys` | `Idempotency-Key` store, idempotent `POST /api/v1/audit-events` | MPS-22A.05, ADR-0003 §5 | in review |
+| A10 | `feat/api-etag-preconditions` | Weak `ETag` + `If-Match` (412) on `GET /workspaces/current` | MPS-22A.06, ADR-0003 §5 | in review |
+| A11 | `feat/api-me-provisioned` | `GET /me` includes DB user id, status, `is_provisioned` | MPS-14.10 | in review |
+| A12 | `feat/api-shared-constants` | Cross-cutting constants in `shared/constants.py` | context.md §2 | in review |
+| A13 | `feat/api-audit-role-gates` | Audit list/verify require audit-capable roles | MPS-14.02 | in review |
+| A14 | `feat/api-license-store` | Org licence install/status HTTP (`organization_licenses`) | LIC-7.07, DEP-23.07 | in review |
+| A15 | `feat/api-prometheus-metrics` | `GET /metrics` Prometheus text exposition | TSD-11.01, MP-28.01 | in review |
+| — | `feat/dev-keycloak-compose` | Keycloak 26 in Compose + realm import for local OIDC | TSD-9.01, Q-21 | in review |
+| — | `chore/policy-opa-skeleton` | `policy/` placeholder for future OPA bundles | MPS-22.x | in review |
+| A16 | `feat/api-org-customer-id` | `organizations.customer_id` + licence install binding | LIC-17.02, MPS-29.06 | in review |
+| A17 | `feat/api-license-readiness-probe` | Optional `commercial_license` readiness probe | LIC-10.01, MPS-6A.11 | in review |
+| A18 | `feat/api-policy-engine-stub` | `GET /policy/engine` stub status | MPS-22.x | in review |
 
 ### Progress log
 
@@ -86,6 +103,179 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - Test client uses `httpx2` (Starlette 1.8 deprecates `httpx`).
 
   **Results:** ruff, mypy strict, pytest 174 passed. Manual uvicorn run: `/health` 200, `/ready` 200, `/docs` 200; startup without the base URL fails fast.
+
+- **A2 — 2026-10-14** — Errors and observability.
+  - **Typed errors:** `AppError` hierarchy, one class per MP-34.01 category: validation 422, authentication 401, permission 403, policy denial 403, licence problem 403, not found 404, conflict 409, dependency unavailable 503, internal 500. Features subclass these with their own stable `code`.
+  - **One global handler** turns every failure into RFC 9457 `application/problem+json`. The body has a URN `type`, `code`, `correlation_id` and `instance`, plus per-field `errors` for validation. It never includes input values, stack traces or SQL.
+  - **Framework errors** are covered too: unknown routes, wrong methods and unexpected exceptions also return problem details.
+  - **Correlation ID middleware** (pure ASGI): accepts a safe caller ID or mints a UUID, echoes `X-Correlation-Id`, and logs method, path, status and duration only, never query strings, headers or bodies.
+  - **Logging:** JSON formatter; the correlation ID is stamped when the log record is created.
+  - **Contract:** OpenAPI documents 422/500 problem responses; version 0.2.0.
+  - **Tooling:** Ruff `max-args=6`; mypy excludes `conftest.py`, since two same-named modules can't be checked in one run.
+
+  **Results:** ruff, mypy strict (49 files), pytest 192 passed.
+
+- **A3 — 2026-10-14** — Lists and pagination.
+  - **List envelope:** `ListEnvelope[T]` is `{success, data, meta: {next_cursor, limit}}`, deliberately with no `total`.
+  - **`PageRequestDependency`:** `?cursor=&limit=`, default 20, 1–100 enforced, cursor at most 512 characters.
+  - **Opaque versioned cursor** (base64url JSON of the last item's sort-key position). A tampered or foreign cursor returns 422 `INVALID_CURSOR`. A test caught a cursor shape that would have crashed with a 500; it's fixed.
+  - **`build_page`:** keyset paging from `limit + 1` fetched rows.
+  - **Requirements covered:** MPS-22A.04 (cursor pagination), MPS-15.07 (no counts), context.md §5 (bounded lists, capped limit).
+
+  **Results:** ruff, mypy strict (51 files), pytest 207 passed.
+
+- **A4 — 2026-10-14** — Database foundation.
+  - **Driver and URL:** async SQLAlchemy 2.0 with psycopg 3. `RELYXUS_DATABASE_URL` is required, held as a secret (never in reprs or logs), and must use `postgresql+psycopg://`.
+  - **Startup:** the engine is lazy, so the app never blocks on the database at startup; the engine is disposed on shutdown.
+  - **Base model:** `Base` with deterministic constraint naming. `RecordColumns` adds UUIDv7 `id` (RFC 9562 generator, since Python 3.13 has none), `created_at` and `updated_at` (all timestamps timezone-aware).
+  - **Sessions:** `DatabaseSessionDependency` gives a session per request; services own `session.begin()`.
+  - **Readiness:** `/ready` probes the database with `SELECT 1` under a configurable timeout and returns 503 when it is unreachable.
+  - **Migrations:** Alembic with an async environment, the URL from the environment only, a migration template that requires a rollout and rollback note, and an empty `0001` baseline.
+  - **CI:** a PostgreSQL 18 + pgvector service container; integration tests are required there.
+  - **Local development:** `compose.yaml` and `.env.example`. Windows needs the selector event loop for psycopg async, which tests and Alembic set automatically.
+
+  **Results:**
+  - ruff and mypy strict (60 files) pass.
+  - Against a local throwaway PostgreSQL 16.3: pytest 217 passed (3 integration).
+  - Without a database: 214 passed, 3 skipped.
+  - `compose.yaml` is untested locally (no Docker on this machine); CI exercises PostgreSQL 18.
+
+- **A5 — 2026-10-14** — Tenancy and row-level security.
+  - **Tables:**
+    - `organizations`: name, deployment mode (exactly four values, enforced in the database), default region.
+    - `workspaces`: org foreign key, human key (format-checked, unique per org), name, data-residency region.
+    - A unique `(id, organization_id)` on workspaces is the target for future composite foreign keys, so a record can never point at another org's workspace.
+  - **Migration `0002`:**
+    - creates the fail-closed functions `relyxus_current_organization_id()` and `relyxus_current_workspace_id()`
+    - ENABLEs and FORCEs RLS on both tables
+    - adds `USING` + `WITH CHECK` tenant policies
+  - **`apply_tenant_context`:** transaction-local `set_config`; refuses to run outside a transaction.
+  - **Readiness guard:** outside local development, `/ready` reports not-ready if the app's database role is a superuser or has `BYPASSRLS`, since either silently disables isolation.
+  - **Model registry:** `relyxus_api.models` makes Alembic see every table.
+  - **Requirements covered:** MP-10.01, MPS-28.08, MPS-28.10, TSD-22.02/22.03 (database layer), MP-33.01 (RLS tests).
+  - **Not yet covered:** building `TenantContext` from authenticated membership (needs auth, A6); workspace-scoped tables and policies (with the first such table); the `plan` field on Organisation (commercial plan values undefined, Q-08).
+
+  **Results:** ruff and mypy strict (66 files) pass. Local PostgreSQL 16.3: pytest 226 passed. RLS tests run as a non-superuser role and cover:
+  - forced-RLS flags on both tables
+  - own rows only
+  - no context means no rows
+  - cross-tenant insert blocked
+  - cross-tenant move blocked
+  - context not leaking across transactions on a single pooled connection
+  - context required inside a transaction
+  - models exactly match migrations
+  - superuser role reported unsafe outside local
+
+- **A6a — 2026-10-14** — Access-token authentication.
+  - **`AccessTokenVerifier`** (PyJWT): checks the signature via the issuer's JWKS (`JwksSigningKeyResolver`, cached by `kid`), the exact issuer, the audience, `exp`/`nbf` with configurable leeway, required claims (`exp`, `iat`, `iss`, `aud`, `sub`) and an algorithm allow-list (default RS256).
+  - **Failure response:** one generic `INVALID_ACCESS_TOKEN` 401, so the response never helps an attacker tune a forged token.
+  - **401 challenges:** responses carry an RFC 6750 `WWW-Authenticate: Bearer` header (with `error="invalid_token"` for bad tokens).
+  - **Bearer dependency:** runs in a worker thread, because the first JWKS fetch is blocking I/O.
+  - **`GET /api/v1/me`:** returns the verified identity. OpenAPI declares `bearerAuth`; contract version 0.3.0.
+  - **New settings:** `RELYXUS_OIDC_ISSUER_URL` (kept as the exact string), `RELYXUS_OIDC_AUDIENCE`, optional JWKS URL (defaults to Keycloak's certs path), algorithms, leeway.
+  - **Refactor:** the problem-response builder is split in two.
+
+  **Results:** ruff and mypy strict (73 files) pass; pytest 241 passed against local PostgreSQL. The auth tests reject a token signed by another key, a wrong issuer, a wrong audience, expiry, not-before, missing `sub`, missing `exp`, `alg: none`, HS256 algorithm confusion and malformed tokens. They also cover leeway, JWKS `kid` selection with an unknown `kid` rejected, and the OpenAPI security declaration.
+
+- **A6b — 2026-10-14** — Users, workspace memberships and the access chain.
+  - **Tables:**
+    - `users` (MPS-20.04): issuer + subject unique, email, display name, status active/suspended/deprovisioned, last sign-in.
+    - `workspace_memberships`: one row per role; the nine built-in roles are enforced by a CHECK.
+    - A composite foreign key makes a membership pointing at another org's workspace impossible.
+  - **Migration `0003`:** forced RLS on both tables.
+    - A user row is visible to its own identity, to its ID, or to an org it belongs to.
+    - A membership row is visible within its org, or to its own user.
+    - Writes need org context, or self for users.
+  - **`WorkspaceAccessService.open_workspace`:** verified identity → provisioned user → active status → grants in the requested workspace → transaction-scoped tenant context.
+    - **Same denial for unknown and forbidden workspaces,** so IDs can't be probed.
+    - **Issuer + subject is the identity:** the same `sub` from another issuer is a different person.
+  - **`WorkspaceSessionDependency`:** one transaction per request, using `Depends(scope="function")` so the commit finishes before the response is sent.
+  - **Refactor:** `set_transaction_settings` is shared by tenant and identity context.
+  - **Requirements covered:** MP-10.01 (tenant scope only from verified membership), MPS-28.10, MPS-20.04, MPS-20.06 (direct grants; team grants come with teams), MPS-14.02–14.09 (role vocabulary; the can/cannot rules come with OPA).
+
+  **Results:** ruff and mypy strict (81 files) pass; pytest 251 passed against local PostgreSQL. Tests, run as a non-superuser role:
+  - roles and tenant scope for a member
+  - foreign and unknown workspaces fail identically
+  - unprovisioned identity
+  - another issuer is a different identity
+  - suspended user denied despite grants
+  - identity context reveals only own user and grants
+  - app role cannot create users for others
+  - cross-org membership rejected by the composite foreign key
+  - HTTP flow: 401 without token, 422 without or with a bad header, 403 for a foreign workspace, 200 with roles
+
+- **A6c — 2026-10-14** — Workspace endpoints.
+  - **`GET /api/v1/me/workspaces`:** the workspace picker (MPS-15.02). Every workspace the caller holds a role in, across organisations, with org name, region and roles; cursor-paged, no total.
+  - **`GET /api/v1/workspaces/current`:** the workspace in `X-Relyxus-Workspace-Id`, verified against grants, with the caller's roles.
+  - **Migration `0004`:** `organizations` and `workspaces` reads also allow rows the current user is a member of. `WITH CHECK` is unchanged, so writes still require tenant context.
+  - **Tenant-scope fix:** once a workspace is opened, the user context is cleared so a tenant-scoped request sees exactly one organisation; the tests caught the widened view.
+  - **Typed repository** with the listing query; `resolve_active_user` is shared.
+  - **Contract version 0.4.0.**
+  - **Test refactor (context.md §3 rule of three):** shared `db_test_support` and `tenancy_fixtures`, used by all RLS and access tests.
+
+  **Results:** ruff and mypy strict (87 files) pass; pytest 262 passed against local PostgreSQL. As the non-superuser role:
+  - user context reveals only member workspaces and orgs (Amira A1 + B1 and both orgs; Bob B1 and org B)
+  - user context alone cannot write workspaces
+
+  Over HTTP:
+  - picker returns cross-org workspaces with roles
+  - cursor paging
+  - inactive and unprovisioned users refused
+  - 401 without a token
+  - current workspace details and roles
+  - 403 `WORKSPACE_ACCESS_DENIED` for same org without a grant, another org, and a nonexistent workspace
+
+- **A7 — 2026-10-14** — Tamper-evident audit hash chain.
+  - **`audit_events` table** (migration `0005`): one chain per workspace (`chain_id = workspace_id`) or per organisation when `workspace_id` is null; monotonic `sequence`, RFC 8785 canonical JSON hashed with SHA-256 (via `apporine_licensing.canonical_json`).
+  - **Append-only:** `BEFORE UPDATE` and `BEFORE DELETE` triggers reject mutations; forced RLS on `organization_id`.
+  - **`AuditService.append`:** transaction-scoped `pg_advisory_xact_lock` per chain, links `previous_hash`, assigns the next sequence.
+  - **`verify_chain` / `verify_events`:** recomputes hashes and linkage; naive UTC timestamps from PostgreSQL are normalised before hashing.
+  - **Requirements covered:** MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6 (Q-19). Evidence ledger remains a separate future chain.
+
+  **Results:** ruff and mypy strict pass; pytest 270 passed against local PostgreSQL (integration). Tests cover model/migration drift, workspace and org chains, cross-tenant append blocked, immutability triggers, and offline tamper detection.
+
+- **A8 — 2026-10-14** — Audit log HTTP read API.
+  - **`GET /api/v1/audit-events`:** workspace-scoped cursor pagination on `sequence`.
+  - **`GET /api/v1/audit-events/chain-verification`:** offline hash-chain validation report.
+  - Contract **0.4.1**; integration tests in `test_audit_endpoints.py`.
+
+- **A9 — 2026-10-14** — Idempotent audit append.
+  - **`idempotency_records` table** (migration `0006`) with tenant RLS.
+  - **`POST /api/v1/audit-events`:** requires `Idempotency-Key`, replays stored `{success, data}` on retry; 409 on key/body mismatch.
+  - Contract **0.4.2**; tests in `test_idempotency_audit.py`.
+
+- **A10 — 2026-10-14** — Optimistic concurrency primitives.
+  - **`PreconditionFailedError` (412)** and `assert_if_match`.
+  - **`GET /api/v1/workspaces/current`:** returns weak `ETag` from `updated_at`; stale `If-Match` → 412.
+  - Contract **0.4.3**; tests in `test_etag_preconditions.py` and `test_preconditions_unit.py`.
+
+- **A11 — 2026-10-14** — Provisioned identity on `/me`.
+  - **`GET /api/v1/me`:** adds `is_provisioned`, `user_id`, `status` from the database when the IdP subject is mapped.
+  - Contract **0.4.4**; integration tests in `test_me_provisioned.py`.
+
+- **A12 — 2026-10-14** — Shared constants module.
+  - **`shared/constants.py`:** workspace/correlation/idempotency headers and pagination limits (context.md §2).
+
+- **A13 — 2026-10-14** — Audit read role gates.
+  - **`GET /audit-events`** and **chain-verification** require auditor-class roles; contract **0.4.6**.
+
+- **A14 — 2026-10-14** — Organisation licence store.
+  - **`organization_licenses` (0007)**; **`GET /license/status`**, idempotent **`POST /license/install`**; offline verify via `apporine_licensing`.
+  - Contract **0.4.7**; `test_license_api.py` uses the golden vector.
+
+- **A15 — 2026-10-14** — Prometheus metrics endpoint.
+  - **`GET /metrics`:** text exposition with `relyxus_up`, `relyxus_ready`, `relyxus_api_info`.
+  - Contract **0.4.8**; unit tests in `test_metrics.py`.
+
+- **Dev — 2026-10-14** — Keycloak in Docker Compose with imported `relyxus` realm (`infra/keycloak/`).
+
+- **Dev — 2026-10-14** — `policy/` README placeholder for OPA bundles; README tooling table.
+
+- **A16 — 2026-10-14** — Organisation `customer_id` (migration 0008); licence install binds or rejects mismatch (`LICENSE_CUSTOMER_MISMATCH`).
+
+- **A17 — 2026-10-14** — `RELYXUS_LICENSE_READINESS_ORGANIZATION_ID` adds `commercial_license` to `/ready`.
+
+- **A18 — 2026-10-14** — `GET /api/v1/policy/engine` reports stub mode and optional bundle path. Contract **0.5.0**.
 
 ---
 

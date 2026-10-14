@@ -12,7 +12,7 @@
 
   ```json
   {
-    "type": "https://errors.relyxus.io/incident-not-found",
+    "type": "urn:relyxus:problem:incident-not-found",
     "title": "Incident not found",
     "status": 404,
     "detail": "No incident with this ID is visible to you.",
@@ -22,7 +22,7 @@
   }
   ```
 
-  `code` is the stable machine-readable code that context.md §8 requires. `correlation_id` satisfies MPS-22A.04.
+  `type` is a URN derived from `code` (it identifies the problem; it is not a web page). `code` is the stable machine-readable code that context.md §8 requires. `correlation_id` satisfies MPS-22A.04.
 - Errors never use the success envelope, and a 2xx response never carries an error.
 
 ### 2. Pagination (Q-02)

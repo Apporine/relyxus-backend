@@ -1,17 +1,19 @@
+import asyncio
+import sys
 from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from pydantic import AnyHttpUrl
 
+from api_test_support import make_settings
 from relyxus_api.app import create_app
-from relyxus_api.shared.config.settings import Environment, Settings
+from relyxus_api.shared.config.settings import Environment
 
 type ClientFactory = Callable[[Environment], TestClient]
 
-
-def make_settings(environment: Environment = Environment.LOCAL) -> Settings:
-    return Settings(environment=environment, public_base_url=AnyHttpUrl("https://api.example.test"))
+# psycopg's async driver cannot use Windows' default Proactor loop; production runs on Linux.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @pytest.fixture

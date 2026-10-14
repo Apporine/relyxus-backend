@@ -1,0 +1,72 @@
+[project]
+name = "relyxus-backend"
+version = "0.1.0"
+description = "Relyxus backend workspace (uv workspace root; not a distributable package)"
+requires-python = ">=3.13"
+dependencies = ["apporine-licensing"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.11",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+apporine-licensing = { workspace = true }
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+src = ["packages/*/src", "packages/*/tests"]
+
+[tool.ruff.lint]
+select = [
+    "B",    # bugbear
+    "BLE",  # no blind except (context.md §8)
+    "C4",
+    "DTZ",  # timezone-aware datetimes only (machine-safe values, MPS-14.24)
+    "E",
+    "ERA",  # no commented-out code (context.md §14)
+    "F",
+    "I",
+    "N",    # PEP 8 naming (ADR-0001)
+    "PL",
+    "PT",
+    "PTH",
+    "RET",
+    "RUF",
+    "S",    # bandit security checks
+    "SIM",
+    "T20",  # no print (context.md §12)
+    "TRY",
+    "UP",
+    "W",
+]
+ignore = [
+    "TRY003", # domain errors carry explanatory messages by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+mypy_path = "packages/licensing/src"
+files = ["packages"]
+explicit_package_bases = true
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
+xfail_strict = true

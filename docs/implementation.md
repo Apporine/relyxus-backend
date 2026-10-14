@@ -36,7 +36,7 @@ Still open and **not** assumed: Q-01, Q-02, Q-03 (no HTTP endpoints built yet), 
 | # | PR / branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
 | 1 | `docs/requirements-register` | Requirements register + this tracker | (all — traceability) | in review |
-| 2 | `chore/python-workspace-foundation` | uv workspace, Python 3.13, Ruff, mypy, pytest, pre-commit, CI, ADR-0001 | MPS-17.07, MPS-22.19, TSD-6.01, TSD-12.01, TSD-14.02, MP-38.01 | planned |
+| 2 | `chore/python-workspace-foundation` | uv workspace, Python 3.13, Ruff, mypy, pytest, pre-commit, CI, ADR-0001 | MPS-17.07, MPS-22.19, TSD-6.01, TSD-12.01, TSD-14.02, MP-38.01 | in review |
 | 3 | `feat/license-canonical-json` | ADR-0002, RFC 8785 canonical JSON, golden vectors | LIC-5.03, LIC-19.01, TSD-23.11 | planned |
 | 4 | `feat/license-payload-schema` | Payload/envelope models, typed errors, exported JSON Schemas + drift test | LIC-5.01, LIC-5.02, LIC-5.04, LIC-12.01, LIC-12.02, MPS-29.05, MPS-29.06, MP-19.01 | planned |
 | 5 | `feat/license-signature-verification` | Key set, base64url, ECDSA verify, golden signature vector | LIC-6.03, LIC-6.04, MPS-29.15–29.17, TSD-23.04, TSD-23.07 | planned |
@@ -52,6 +52,7 @@ Still open and **not** assumed: Q-01, Q-02, Q-03 (no HTTP endpoints built yet), 
 _Each entry: PR number, date, what changed, requirement IDs covered, test/lint results as actually run._
 
 - **PR 1 — 2026-10-14** — Added requirements register (846 + 75 LIC requirements, 33 open questions) and this tracker. No code.
+- **PR 2 — 2026-10-14** — uv workspace (Python 3.13), `apporine-licensing` package skeleton, Ruff (incl. bandit, no-print, no-blind-except, no commented-out code), mypy `--strict`, pytest, pre-commit (lint, format, types, tests, Gitleaks), GitHub Actions CI, `.gitignore` (excludes `important/`, key material), LF line endings, ADR-0001. **Covered:** TSD-6.01 (tooling), TSD-14.02 (lint/type/unit/secret-scan CI; policy, migration, container scans and E2E come with their features), MPS-17.07 (secret scanning, mandatory-review part only), MPS-22.19, MP-38.01. **Results:** `pre-commit run --all-files`: ruff check, ruff format, mypy, pytest (1 passed), gitleaks — all Passed. CI workflow not yet run on GitHub (nothing pushed).
 
 ---
 

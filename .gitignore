@@ -1,0 +1,31 @@
+# Confidential source specifications are kept out of git (ADR-0001, Q-31)
+important/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local configuration (commit .env.example only)
+.env
+.env.*
+!.env.example
+
+# Key material must never be committed (MP-14.01)
+*.key
+*private*.pem
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

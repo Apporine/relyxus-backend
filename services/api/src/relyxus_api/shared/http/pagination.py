@@ -22,8 +22,8 @@ CURSOR_FORMAT_VERSION = 1
 
 __all__ = [
     "CURSOR_FORMAT_VERSION",
-    "InvalidCursorError",
     "MAX_PAGE_LIMIT",
+    "InvalidCursorError",
     "Page",
     "PageRequest",
     "PageRequestDependency",

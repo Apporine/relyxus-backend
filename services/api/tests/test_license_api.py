@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import AnyHttpUrl, SecretStr
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api_test_support import TEST_OIDC_AUDIENCE, TEST_OIDC_ISSUER
 from db_test_support import migrate_and_reset, require_test_database_url, run_as_superuser

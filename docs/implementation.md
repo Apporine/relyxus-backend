@@ -73,7 +73,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | in review |
 | A6a | `feat/api-access-token-auth` | Keycloak OIDC access-token verification, 401 challenges, `GET /api/v1/me` | MPS-14.10 (token side), TSD-9.01, ADR-0003 §7, context.md §10 | in review |
 | A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | in review |
-| A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | planned |
+| A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | in review |
 
 ### Progress log
 
@@ -186,6 +186,27 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - app role cannot create users for others
   - cross-org membership rejected by the composite foreign key
   - HTTP flow: 401 without token, 422 without or with a bad header, 403 for a foreign workspace, 200 with roles
+
+- **A6c — 2026-10-14** — Workspace endpoints.
+  - **`GET /api/v1/me/workspaces`:** the workspace picker (MPS-15.02). Every workspace the caller holds a role in, across organisations, with org name, region and roles; cursor-paged, no total.
+  - **`GET /api/v1/workspaces/current`:** the workspace in `X-Relyxus-Workspace-Id`, verified against grants, with the caller's roles.
+  - **Migration `0004`:** `organizations` and `workspaces` reads also allow rows the current user is a member of. `WITH CHECK` is unchanged, so writes still require tenant context.
+  - **Tenant-scope fix:** once a workspace is opened, the user context is cleared so a tenant-scoped request sees exactly one organisation; the tests caught the widened view.
+  - **Typed repository** with the listing query; `resolve_active_user` is shared.
+  - **Contract version 0.4.0.**
+  - **Test refactor (context.md §3 rule of three):** shared `db_test_support` and `tenancy_fixtures`, used by all RLS and access tests.
+
+  **Results:** ruff and mypy strict (87 files) pass; pytest 262 passed against local PostgreSQL. As the non-superuser role:
+  - user context reveals only member workspaces and orgs (Amira A1 + B1 and both orgs; Bob B1 and org B)
+  - user context alone cannot write workspaces
+
+  Over HTTP:
+  - picker returns cross-org workspaces with roles
+  - cursor paging
+  - inactive and unprovisioned users refused
+  - 401 without a token
+  - current workspace details and roles
+  - 403 `WORKSPACE_ACCESS_DENIED` for same org without a grant, another org, and a nonexistent workspace
 
 ---
 

@@ -1,8 +1,8 @@
-"""Turns a verified identity plus a requested workspace into a tenant scope (MP-10.01).
+"""Turns a verified identity into a user and, on request, a workspace scope (MP-10.01).
 
-The workspace ID comes from the client, so it is only a request: access exists only if the
-database holds an active user with a grant in that workspace. Unknown and forbidden
-workspaces fail identically, so callers cannot probe which workspace IDs exist.
+A workspace ID from the client is only a request: access exists only if the database holds
+an active user with a grant in that workspace. Unknown and forbidden workspaces fail
+identically, so callers cannot probe which workspace IDs exist.
 """
 
 import uuid
@@ -11,11 +11,12 @@ from typing import ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from relyxus_api.modules.access.model import UserStatus, WorkspaceRole
-from relyxus_api.modules.access.repository import AccessRepository
+from relyxus_api.modules.access.model import User, UserStatus, WorkspaceRole
+from relyxus_api.modules.access.repository import AccessRepository, WorkspaceListing
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
 from relyxus_api.shared.auth.access_token import AuthenticatedPrincipal
 from relyxus_api.shared.errors.app_errors import PermissionDeniedError
+from relyxus_api.shared.http.pagination import Page, PageRequest, build_page
 
 
 class UserNotProvisionedError(PermissionDeniedError):
@@ -42,10 +43,10 @@ class WorkspaceAccessService:
     def __init__(self, repository: AccessRepository) -> None:
         self._repository = repository
 
-    async def open_workspace(
-        self, session: AsyncSession, principal: AuthenticatedPrincipal, workspace_id: uuid.UUID
-    ) -> WorkspaceAccess:
-        """Resolve access and apply the tenant context. Must run inside a transaction."""
+    async def resolve_active_user(
+        self, session: AsyncSession, principal: AuthenticatedPrincipal
+    ) -> User:
+        """Map the verified identity to an active user and scope RLS to that user."""
         user = await self._repository.find_user_by_identity(
             session, principal.issuer, principal.subject
         )
@@ -53,7 +54,14 @@ class WorkspaceAccessService:
             raise UserNotProvisionedError("Your account has not been provisioned in Relyxus.")
         if user.status != UserStatus.ACTIVE:
             raise UserNotActiveError("Your Relyxus account is not active.")
+        await self._repository.apply_user_context(session, user.id)
+        return user
 
+    async def open_workspace(
+        self, session: AsyncSession, principal: AuthenticatedPrincipal, workspace_id: uuid.UUID
+    ) -> WorkspaceAccess:
+        """Resolve access and apply the tenant context. Must run inside a transaction."""
+        user = await self.resolve_active_user(session, principal)
         grants = await self._repository.list_workspace_grants(session, user.id, workspace_id)
         if not grants:
             raise WorkspaceAccessDeniedError("You do not have access to this workspace.")
@@ -68,4 +76,31 @@ class WorkspaceAccessService:
             session,
             TenantContext(organization_id=access.organization_id, workspace_id=workspace_id),
         )
+        # From here on, only the chosen tenant is visible, never the caller's other
+        # organisations (the user context would widen workspace and org reads).
+        await self._repository.clear_user_context(session)
         return access
+
+    async def list_my_workspaces(
+        self, session: AsyncSession, principal: AuthenticatedPrincipal, page_request: PageRequest
+    ) -> Page[WorkspaceListing]:
+        """Every workspace the caller holds a role in, across organisations (MPS-15.02)."""
+        async with session.begin():
+            user = await self.resolve_active_user(session, principal)
+            after = uuid.UUID(str(page_request.after[0])) if page_request.after else None
+            fetched = await self._repository.list_workspaces_for_user(
+                session, user.id, after, page_request.limit + 1
+            )
+        return build_page(fetched, page_request, lambda listing: (str(listing.workspace_id),))
+
+    async def describe_workspace(
+        self, session: AsyncSession, access: WorkspaceAccess
+    ) -> WorkspaceListing:
+        listing = await self._repository.find_workspace_listing(
+            session, access.user_id, access.workspace_id
+        )
+        if listing is None:
+            # Access was just resolved in this transaction, so this means a concurrent
+            # revocation; deny rather than report a workspace the caller can no longer use.
+            raise WorkspaceAccessDeniedError("You do not have access to this workspace.")
+        return listing

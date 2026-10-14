@@ -5,20 +5,19 @@ database fails the build instead of silently skipping these tests.
 """
 
 import asyncio
-import os
 import uuid
 from pathlib import Path
 
 import pytest
 from alembic import command
-from alembic.config import Config
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from sqlalchemy import String, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from api_test_support import get_test_database_url, make_settings
+from api_test_support import make_settings
+from db_test_support import build_alembic_config, require_test_database_url
 from relyxus_api.app import create_app
 from relyxus_api.shared.db.base import NAMING_CONVENTION, Base, RecordColumns
 from relyxus_api.shared.db.engine import create_session_factory
@@ -29,12 +28,7 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
 @pytest.fixture(scope="module")
 def database_url() -> str:
-    url = get_test_database_url()
-    if url is None:
-        if os.environ.get("RELYXUS_REQUIRE_INTEGRATION") == "1":
-            pytest.fail("RELYXUS_TEST_DATABASE_URL is required in this environment")
-        pytest.skip("RELYXUS_TEST_DATABASE_URL not set")
-    return url
+    return require_test_database_url()
 
 
 class _ProbeBase(DeclarativeBase):
@@ -57,8 +51,7 @@ def test_readiness_is_200_when_the_database_is_reachable(database_url: str) -> N
 
 
 def test_migrations_upgrade_to_head(database_url: str) -> None:
-    config = Config(str(ALEMBIC_INI))
-    config.attributes["database_url"] = database_url
+    config = build_alembic_config(database_url)
 
     command.upgrade(config, "head")
     command.upgrade(config, "head")

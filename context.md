@@ -121,7 +121,87 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 6. Validation
+## 6. API Documentation (Swagger / OpenAPI)
+
+Every endpoint is documented. An undocumented endpoint is an incomplete endpoint.
+
+**Rules**
+- OpenAPI 3.x. One spec per service.
+- Spec and code stay in sync — generate the spec from code annotations/schemas, or generate validation from the spec. Never maintain both by hand.
+- Document for each endpoint: summary, params, request body, every response code, auth requirement.
+- Define reusable `components/schemas` for models and errors. Do not inline the same shape twice.
+- Include the standard success and error envelopes as shared schemas.
+- Realistic examples on every schema — no `"string"` placeholders.
+- Group endpoints with `tags` per module.
+- Bump the spec `version` on every contract change.
+
+**Routes**
+```
+/docs        → Swagger UI
+/docs.json   → raw OpenAPI spec
+```
+- Enabled in local and staging. In production: disabled, or behind auth — never public.
+- Add a server entry per environment and configure the auth scheme so "Try it out" works.
+
+**Node / Express**
+```js
+// shared/config/swagger.js
+import swaggerUi from 'swagger-ui-express';
+import swaggerJsdoc from 'swagger-jsdoc';
+
+const spec = swaggerJsdoc({
+  definition: {
+    openapi: '3.0.3',
+    info: { title: 'API', version: '1.0.0' },
+    servers: [{ url: process.env.API_URL }],
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      },
+    },
+    security: [{ bearerAuth: [] }],
+  },
+  apis: ['./src/modules/**/*.controller.js'],
+});
+
+export function mountDocs(app) {
+  if (process.env.NODE_ENV === 'production') return;
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(spec));
+  app.get('/docs.json', (_req, res) => res.json(spec));
+}
+```
+
+**Spring Boot (springdoc-openapi)**
+```java
+@Configuration
+public class SwaggerConfig {
+  @Bean
+  public OpenAPI api() {
+    return new OpenAPI()
+      .info(new Info().title("API").version("1.0.0"))
+      .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
+      .components(new Components().addSecuritySchemes("bearerAuth",
+        new SecurityScheme().type(SecurityScheme.Type.HTTP)
+          .scheme("bearer").bearerFormat("JWT")));
+  }
+}
+```
+```yaml
+# application.yml
+springdoc:
+  swagger-ui.path: /docs
+  api-docs.path: /docs.json
+  swagger-ui.enabled: ${SWAGGER_ENABLED:true}
+```
+Annotate controllers with `@Tag`, `@Operation`, `@ApiResponse`, `@Schema`.
+
+**Checks**
+- Spec must build in CI. A broken spec fails the pipeline.
+- New endpoint without documentation → review rejection.
+
+---
+
+## 7. Validation
 
 - Validate every request at the edge with a schema (Zod / Joi / Bean Validation / Pydantic).
 - Invalid input never reaches the service layer.
@@ -131,7 +211,7 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 7. Error Handling
+## 8. Error Handling
 
 - One global error handler. Controllers do not contain try/catch for responses.
 - Throw typed errors: `NotFoundError`, `ValidationError`, `ConflictError`, `UnauthorizedError`.
@@ -141,7 +221,7 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 8. Database
+## 9. Database
 
 - All schema changes via versioned migrations. No manual changes to any environment.
 - Migrations are forward-only and reviewed like code.
@@ -154,7 +234,7 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 9. Security
+## 10. Security
 
 - Secrets in environment variables. Never in the repo. `.env` is gitignored; `.env.example` is committed.
 - Authenticate at middleware; authorise in the service layer.
@@ -167,7 +247,7 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 10. Configuration
+## 11. Configuration
 
 - Load and validate all config at startup. Crash immediately on a missing required variable.
 - No hardcoded URLs, ports, keys, or limits anywhere in the code.
@@ -175,7 +255,7 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 11. Logging & Observability
+## 12. Logging & Observability
 
 - Structured JSON logs. No `print` / `console.log` in committed code.
 - Levels: `error` (needs action), `warn` (unexpected, handled), `info` (lifecycle), `debug` (local only).
@@ -184,7 +264,7 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 12. Testing
+## 13. Testing
 
 - Unit tests for services — mock the repository.
 - Integration tests for repositories — use a real test database.
@@ -195,9 +275,38 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 
 ---
 
-## 13. Git & Commits
+## 14. Git Workflow
 
-- Branches: `feat/short-name`, `fix/short-name`, `chore/short-name`.
+**Branches**
+```
+main      → production. Protected. Release merges only.
+develop   → integration branch. Protected. All feature work lands here.
+feat/*    → new work, cut from develop
+fix/*     → bug fix, cut from develop
+hotfix/*  → urgent production fix, cut from main
+```
+
+**Cycle — every change follows this. No exceptions.**
+
+1. Pull the latest `develop`.
+2. Cut a branch from it: `feat/user-invite`, `fix/token-expiry`, `chore/upgrade-orm`. One branch per ticket.
+3. Commit in small logical units as you work.
+4. Rebase on `develop` before raising the PR so the branch is current.
+5. Push and raise a PR into `develop`. Never into `main`.
+6. PR must describe what changed, why, and how it was tested. Link the ticket.
+7. CI must be green and at least one review approved.
+8. Address review comments with new commits, not a force-push that wipes the thread.
+9. Squash merge into `develop`. Delete the branch after merge.
+10. `develop` → `main` only at release, via its own PR.
+
+**Rules**
+- Never commit directly to `main` or `develop`.
+- Never merge your own PR without a review.
+- Keep PRs small — under ~400 changed lines. Split large work into stacked PRs.
+- A branch open longer than a few days gets rebased on `develop` daily.
+- `hotfix/*` merges into `main`, then is merged back into `develop` immediately so the fix is not lost.
+
+**Commits**
 - Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 - Subject under 72 characters, imperative mood: `fix: reject expired refresh tokens`.
 - One logical change per commit. Formatting and logic go in separate commits.
@@ -210,11 +319,11 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 4. Unit tests
 5. Secret scan
 
-**Before merge:** all tests green, no linter warnings, migration included if schema changed, no debug code, at least one approving review.
+**Before merge:** all tests green, no linter warnings, migration included if schema changed, OpenAPI spec updated, no debug code, at least one approving review.
 
 ---
 
-## 14. Review Checklist
+## 15. Review Checklist
 
 - [ ] Layer boundaries respected
 - [ ] No duplicated logic
@@ -225,11 +334,13 @@ Return `meta: { page, limit, total, totalPages }`. Cap `limit` (e.g. 100).
 - [ ] Queries indexed, no N+1
 - [ ] Tests added
 - [ ] API response shape consistent
+- [ ] Swagger/OpenAPI updated for new or changed endpoints
+- [ ] Branch cut from `develop`, PR targets `develop`
 - [ ] Names clear without a comment explaining them
 
 ---
 
-## 15. Principles
+## 16. Principles
 
 - Make it work, make it right, make it fast — in that order.
 - Explicit beats clever.

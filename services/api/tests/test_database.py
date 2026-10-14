@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from sqlalchemy import String, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -71,7 +72,7 @@ def test_migrations_upgrade_to_head(database_url: str) -> None:
         await engine.dispose()
         return version
 
-    assert asyncio.run(read_version()) == "0001"
+    assert asyncio.run(read_version()) == ScriptDirectory.from_config(config).get_current_head()
 
 
 async def add_then_abort(sessions: async_sessionmaker[AsyncSession], record_id: uuid.UUID) -> None:

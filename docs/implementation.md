@@ -70,7 +70,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | in review |
 | A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | in review |
 | A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | in review |
-| A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | planned |
+| A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | in review |
 
 ### Progress log
 
@@ -119,6 +119,32 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - Against a local throwaway PostgreSQL 16.3: pytest 217 passed (3 integration).
   - Without a database: 214 passed, 3 skipped.
   - `compose.yaml` is untested locally (no Docker on this machine); CI exercises PostgreSQL 18.
+
+- **A5 — 2026-10-14** — Tenancy and row-level security.
+  - **Tables:**
+    - `organizations`: name, deployment mode (exactly four values, enforced in the database), default region.
+    - `workspaces`: org foreign key, human key (format-checked, unique per org), name, data-residency region.
+    - A unique `(id, organization_id)` on workspaces is the target for future composite foreign keys, so a record can never point at another org's workspace.
+  - **Migration `0002`:**
+    - creates the fail-closed functions `relyxus_current_organization_id()` and `relyxus_current_workspace_id()`
+    - ENABLEs and FORCEs RLS on both tables
+    - adds `USING` + `WITH CHECK` tenant policies
+  - **`apply_tenant_context`:** transaction-local `set_config`; refuses to run outside a transaction.
+  - **Readiness guard:** outside local development, `/ready` reports not-ready if the app's database role is a superuser or has `BYPASSRLS`, since either silently disables isolation.
+  - **Model registry:** `relyxus_api.models` makes Alembic see every table.
+  - **Requirements covered:** MP-10.01, MPS-28.08, MPS-28.10, TSD-22.02/22.03 (database layer), MP-33.01 (RLS tests).
+  - **Not yet covered:** building `TenantContext` from authenticated membership (needs auth, A6); workspace-scoped tables and policies (with the first such table); the `plan` field on Organisation (commercial plan values undefined, Q-08).
+
+  **Results:** ruff and mypy strict (66 files) pass. Local PostgreSQL 16.3: pytest 226 passed. RLS tests run as a non-superuser role and cover:
+  - forced-RLS flags on both tables
+  - own rows only
+  - no context means no rows
+  - cross-tenant insert blocked
+  - cross-tenant move blocked
+  - context not leaking across transactions on a single pooled connection
+  - context required inside a transaction
+  - models exactly match migrations
+  - superuser role reported unsafe outside local
 
 ---
 

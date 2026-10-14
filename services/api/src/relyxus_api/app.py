@@ -5,14 +5,16 @@ from contextlib import asynccontextmanager
 from functools import partial
 
 from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from relyxus_api.modules.health.controller import router as health_router
 from relyxus_api.modules.health.service import DependencyProbe, HealthService
-from relyxus_api.shared.config.settings import Settings, load_settings
+from relyxus_api.shared.config.settings import Environment, Settings, load_settings
 from relyxus_api.shared.db.engine import (
     create_database_engine,
     create_session_factory,
     is_database_reachable,
+    is_row_level_security_enforced,
 )
 from relyxus_api.shared.errors.handlers import register_exception_handlers
 from relyxus_api.shared.errors.problem_details import PROBLEM_RESPONSES
@@ -26,6 +28,7 @@ API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
 API_CONTRACT_VERSION = "0.2.0"
 DATABASE_PROBE_NAME = "postgresql"
+ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 DOCS_PATH = "/docs"
 OPENAPI_PATH = "/docs.json"
 
@@ -52,22 +55,30 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.settings = settings
     app.state.database_engine = database_engine
     app.state.session_factory = create_session_factory(database_engine)
-    app.state.health_service = HealthService(
-        probes=[
-            DependencyProbe(
-                DATABASE_PROBE_NAME,
-                partial(
-                    is_database_reachable,
-                    database_engine,
-                    settings.database_probe_timeout_seconds,
-                ),
-            )
-        ]
-    )
+    app.state.health_service = HealthService(_build_probes(settings, database_engine))
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router, responses=PROBLEM_RESPONSES)
     return app
+
+
+def _build_probes(settings: Settings, database_engine: AsyncEngine) -> list[DependencyProbe]:
+    timeout = settings.database_probe_timeout_seconds
+    probes = [
+        DependencyProbe(
+            DATABASE_PROBE_NAME, partial(is_database_reachable, database_engine, timeout)
+        )
+    ]
+    # Local development may use a superuser; every other environment must not, because a
+    # superuser or BYPASSRLS role silently disables tenant isolation (MP-10.01).
+    if settings.environment is not Environment.LOCAL:
+        probes.append(
+            DependencyProbe(
+                ROW_LEVEL_SECURITY_PROBE_NAME,
+                partial(is_row_level_security_enforced, database_engine, timeout),
+            )
+        )
+    return probes
 
 
 def build_app() -> FastAPI:

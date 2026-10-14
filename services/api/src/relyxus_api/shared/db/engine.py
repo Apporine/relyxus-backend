@@ -48,6 +48,22 @@ async def is_database_reachable(engine: AsyncEngine, timeout_seconds: float) -> 
     return True
 
 
+_ROLE_RESPECTS_RLS = text(
+    "SELECT NOT (rolsuper OR rolbypassrls) FROM pg_roles WHERE rolname = current_user"
+)
+
+
+async def is_row_level_security_enforced(engine: AsyncEngine, timeout_seconds: float) -> bool:
+    """False when the application's database role would silently bypass every RLS policy
+    (superuser or BYPASSRLS). Tenant isolation must never depend on such a role."""
+    try:
+        async with asyncio.timeout(timeout_seconds), engine.connect() as connection:
+            return bool(await connection.scalar(_ROLE_RESPECTS_RLS))
+    except (SQLAlchemyError, OSError, TimeoutError):
+        logger.warning("row-level security role check failed", exc_info=True)
+        return False
+
+
 async def get_database_session(request: Request) -> AsyncIterator[AsyncSession]:
     session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     async with session_factory() as session:

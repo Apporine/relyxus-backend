@@ -73,3 +73,35 @@ class KeySetConfigurationError(LicenseError):
     """The trusted key set is invalid: a deployment configuration fault, not a bad licence."""
 
     code: ClassVar[str] = "LICENSE_KEY_SET_INVALID"
+
+
+class LicenseTooLargeError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_TOO_LARGE"
+
+
+class ProductMismatchError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_PRODUCT_MISMATCH"
+
+
+class CustomerMismatchError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_CUSTOMER_MISMATCH"
+
+
+class DeploymentNotLicensedError(LicenseVerificationError):
+    """This installation's logical deployment ID is not bound by the licence (LIC-12.01)."""
+
+    code: ClassVar[str] = "LICENSE_DEPLOYMENT_NOT_BOUND"
+
+
+class SigningKeyWindowError(LicenseVerificationError):
+    """The licence claims an issue time outside its signing key's validity window."""
+
+    code: ClassVar[str] = "LICENSE_ISSUED_OUTSIDE_KEY_WINDOW"
+
+
+class LicenseNotYetValidError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_NOT_YET_VALID"
+
+
+class UnsupportedGracePolicyError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_UNSUPPORTED_GRACE_POLICY"

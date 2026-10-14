@@ -44,6 +44,17 @@ class ChainVerificationFailureView(BaseModel):
     reason: str
 
 
+class RecordAuditEventRequest(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    action: str = Field(max_length=100)
+    target_type: str = Field(max_length=64)
+    target_id: str | None = Field(default=None, max_length=128)
+    outcome: AuditOutcome
+    before_state: dict[str, object] | None = None
+    after_state: dict[str, object] | None = None
+
+
 class ChainVerificationReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 

@@ -68,7 +68,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 |---|---|---|---|---|
 | A1 | `feat/api-service-skeleton` | Settings (fail fast), app factory, `/health`, `/ready`, `/docs`, `/docs.json`, OpenAPI export + drift test, ADR-0003 | TSD-11.01 (probes), MP-28.01, MPS-22A.03 (adapted), MP-9.01, context.md §6/§11 | in review |
 | A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | in review |
-| A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | planned |
+| A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | in review |
 | A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | planned |
 | A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | planned |
 
@@ -94,6 +94,15 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - **Tooling:** Ruff `max-args=6`; mypy excludes `conftest.py`, since two same-named modules can't be checked in one run.
 
   **Results:** ruff, mypy strict (49 files), pytest 192 passed.
+
+- **A3 — 2026-10-14** — Lists and pagination.
+  - **List envelope:** `ListEnvelope[T]` is `{success, data, meta: {next_cursor, limit}}`, deliberately with no `total`.
+  - **`PageRequestDependency`:** `?cursor=&limit=`, default 20, 1–100 enforced, cursor at most 512 characters.
+  - **Opaque versioned cursor** (base64url JSON of the last item's sort-key position). A tampered or foreign cursor returns 422 `INVALID_CURSOR`. A test caught a cursor shape that would have crashed with a 500; it's fixed.
+  - **`build_page`:** keyset paging from `limit + 1` fetched rows.
+  - **Requirements covered:** MPS-22A.04 (cursor pagination), MPS-15.07 (no counts), context.md §5 (bounded lists, capped limit).
+
+  **Results:** ruff, mypy strict (51 files), pytest 207 passed.
 
 ---
 

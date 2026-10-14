@@ -1,8 +1,8 @@
 name: ci
 
 on:
+  # Every PR, including stacked PRs whose base is another feature branch.
   pull_request:
-    branches: [develop, main]
   push:
     branches: [develop, main]
 

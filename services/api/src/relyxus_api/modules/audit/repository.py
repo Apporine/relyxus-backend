@@ -42,6 +42,23 @@ class AuditRepository:
         )
         return list(events)
 
+    async def list_chain_page(
+        self,
+        session: AsyncSession,
+        chain_id: uuid.UUID,
+        after_sequence: int | None,
+        limit: int,
+    ) -> list[AuditEvent]:
+        query = (
+            select(AuditEvent)
+            .where(AuditEvent.chain_id == chain_id)
+            .order_by(AuditEvent.sequence.asc())
+        )
+        if after_sequence is not None:
+            query = query.where(AuditEvent.sequence > after_sequence)
+        events = await session.scalars(query.limit(limit))
+        return list(events)
+
     async def count_chain_events(self, session: AsyncSession, chain_id: uuid.UUID) -> int:
         count = await session.scalar(
             select(func.count()).select_from(AuditEvent).where(AuditEvent.chain_id == chain_id)

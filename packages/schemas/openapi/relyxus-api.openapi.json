@@ -1,6 +1,145 @@
 {
   "components": {
     "schemas": {
+      "ActorType": {
+        "enum": [
+          "user",
+          "system",
+          "support"
+        ],
+        "title": "ActorType",
+        "type": "string"
+      },
+      "AuditEventSummary": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "actor_type": {
+            "$ref": "#/components/schemas/ActorType"
+          },
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id"
+          },
+          "correlation_id": {
+            "title": "Correlation Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AuditOutcome"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "occurred_at",
+          "actor_type",
+          "actor_user_id",
+          "action",
+          "target_type",
+          "target_id",
+          "outcome",
+          "correlation_id"
+        ],
+        "title": "AuditEventSummary",
+        "type": "object"
+      },
+      "AuditOutcome": {
+        "enum": [
+          "succeeded",
+          "denied",
+          "failed"
+        ],
+        "title": "AuditOutcome",
+        "type": "string"
+      },
+      "ChainVerificationFailureView": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sequence",
+          "reason"
+        ],
+        "title": "ChainVerificationFailureView",
+        "type": "object"
+      },
+      "ChainVerificationReport": {
+        "properties": {
+          "chain_id": {
+            "format": "uuid",
+            "title": "Chain Id",
+            "type": "string"
+          },
+          "failures": {
+            "items": {
+              "$ref": "#/components/schemas/ChainVerificationFailureView"
+            },
+            "title": "Failures",
+            "type": "array"
+          },
+          "is_valid": {
+            "examples": [
+              true
+            ],
+            "title": "Is Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chain_id",
+          "is_valid",
+          "failures"
+        ],
+        "title": "ChainVerificationReport",
+        "type": "object"
+      },
       "CurrentIdentity": {
         "properties": {
           "authenticated_at": {
@@ -125,6 +264,32 @@
         ],
         "title": "HealthStatus",
         "type": "string"
+      },
+      "ListEnvelope_AuditEventSummary_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEventSummary"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListEnvelope[AuditEventSummary]",
+        "type": "object"
       },
       "ListEnvelope_WorkspaceSummary_": {
         "properties": {
@@ -319,6 +484,24 @@
         "title": "ReadinessStatus",
         "type": "string"
       },
+      "SuccessEnvelope_ChainVerificationReport_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChainVerificationReport"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[ChainVerificationReport]",
+        "type": "object"
+      },
       "SuccessEnvelope_CurrentIdentity_": {
         "properties": {
           "data": {
@@ -491,10 +674,209 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.4.0"
+    "version": "0.4.1"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/audit-events": {
+      "get": {
+        "description": "Cursor-paginated audit log for the workspace in `X-Relyxus-Workspace-Id`. No total count is returned.",
+        "operationId": "list_audit_events_api_v1_audit_events_get",
+        "parameters": [
+          {
+            "description": "Opaque cursor from `meta.next_cursor`",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from `meta.next_cursor`",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Items per page (1-100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page (1-100)",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_AuditEventSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List audit events for the current workspace",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/api/v1/audit-events/chain-verification": {
+      "get": {
+        "description": "Recomputes every hash link for the current workspace chain offline.",
+        "operationId": "verify_audit_chain_api_v1_audit_events_chain_verification_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_ChainVerificationReport_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Verify the workspace audit hash chain",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "description": "The verified identity behind the access token. Requires a Bearer token.",

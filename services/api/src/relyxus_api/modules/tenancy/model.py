@@ -7,7 +7,7 @@ application sets the tenant context per transaction with `apply_tenant_context`.
 import uuid
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from relyxus_api.shared.db.base import Base, RecordColumns
@@ -34,10 +34,11 @@ class Organization(RecordColumns, Base):
     __tablename__ = "organizations"
     __table_args__ = (
         CheckConstraint(f"deployment_mode IN ({_DEPLOYMENT_MODES_SQL})", name="deployment_mode"),
+        Index("ix_organizations_customer_id", "customer_id", unique=True),
     )
 
     name: Mapped[str] = mapped_column(String(NAME_MAX_LENGTH))
-    customer_id: Mapped[uuid.UUID | None] = mapped_column(unique=True)
+    customer_id: Mapped[uuid.UUID | None]
     deployment_mode: Mapped[str] = mapped_column(String(20))
     default_region: Mapped[str] = mapped_column(String(REGION_MAX_LENGTH))
 

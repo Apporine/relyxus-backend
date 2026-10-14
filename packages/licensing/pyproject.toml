@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Apporine commercial licence schema and offline verifier (Licensing & Entitlement Spec v1.0)"
 requires-python = ">=3.13"
 dependencies = [
+    "cryptography>=44,<50",
     "pydantic>=2.11,<3",
 ]
 

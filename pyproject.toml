@@ -62,7 +62,7 @@ ignore = [
 python_version = "3.13"
 strict = true
 warn_unreachable = true
-mypy_path = "packages/licensing/src"
+mypy_path = "packages/licensing/src:packages/licensing/tests"
 files = ["packages"]
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
@@ -74,5 +74,6 @@ warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]
+pythonpath = ["packages/licensing/tests"]
 addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
 xfail_strict = true

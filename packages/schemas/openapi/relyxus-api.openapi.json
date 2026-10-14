@@ -752,7 +752,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.4.2"
+    "version": "0.4.3"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1237,6 +1237,22 @@
         "description": "The workspace named in the `X-Relyxus-Workspace-Id` header, verified against the caller's role grants, with those roles. Unknown and forbidden workspaces both return 403.",
         "operationId": "get_current_workspace_api_v1_workspaces_current_get",
         "parameters": [
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
           {
             "in": "header",
             "name": "X-Relyxus-Workspace-Id",

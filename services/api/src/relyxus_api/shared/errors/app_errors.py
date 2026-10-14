@@ -79,6 +79,12 @@ class ConflictError(AppError):
     title: ClassVar[str] = "Conflict"
 
 
+class PreconditionFailedError(AppError):
+    code: ClassVar[str] = "PRECONDITION_FAILED"
+    status_code: ClassVar[int] = status.HTTP_412_PRECONDITION_FAILED
+    title: ClassVar[str] = "Precondition failed"
+
+
 class DependencyUnavailableError(AppError):
     """A required downstream system failed; never report success in this case (MP-34.01)."""
 

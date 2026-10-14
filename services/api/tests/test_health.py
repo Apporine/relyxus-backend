@@ -13,11 +13,14 @@ def test_liveness_returns_ok_in_success_envelope(client: TestClient) -> None:
     assert response.json() == {"success": True, "data": {"status": "ok"}}
 
 
-def test_readiness_with_no_dependencies_is_ready(client: TestClient) -> None:
+def test_readiness_is_503_when_the_database_is_unreachable(client: TestClient) -> None:
     response = client.get("/ready")
 
-    assert response.status_code == 200
-    assert response.json()["data"] == {"status": "ready", "checks": []}
+    assert response.status_code == 503
+    assert response.json()["data"] == {
+        "status": "not_ready",
+        "checks": [{"name": "postgresql", "is_reachable": False}],
+    }
 
 
 def test_readiness_is_503_when_a_dependency_is_unreachable(client: TestClient) -> None:

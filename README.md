@@ -15,6 +15,17 @@ uv sync                    # create .venv with locked dependencies
 uv run pre-commit install  # enable the pre-commit checks
 ```
 
+## Local database
+
+```sh
+docker compose up -d                      # PostgreSQL 18 + pgvector
+cp .env.example .env                      # then export the variables
+cd services/api && uv run alembic upgrade head
+```
+
+Integration tests run when `RELYXUS_TEST_DATABASE_URL` is set; otherwise they are skipped and reported. CI always runs them.
+On Windows, psycopg's async driver needs the selector event loop; tests and Alembic set it automatically.
+
 ## Checks
 
 ```sh

@@ -33,6 +33,24 @@ jobs:
   python:
     name: lint, types, tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Reference PostgreSQL 18 with pgvector (TSD-7.01); ephemeral, CI-only credentials.
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_USER: relyxus
+          POSTGRES_PASSWORD: relyxus-ci
+          POSTGRES_DB: relyxus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U relyxus -d relyxus_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RELYXUS_TEST_DATABASE_URL: postgresql+psycopg://relyxus:relyxus-ci@localhost:5432/relyxus_test
+      RELYXUS_REQUIRE_INTEGRATION: "1"
     steps:
       - uses: actions/checkout@v4
 

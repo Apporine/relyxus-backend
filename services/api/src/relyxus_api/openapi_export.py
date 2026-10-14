@@ -10,15 +10,18 @@ import json
 import sys
 from pathlib import Path
 
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, SecretStr
 
 from relyxus_api.app import create_app
 from relyxus_api.shared.config.settings import Environment, Settings
 
 OPENAPI_FILE_NAME = "relyxus-api.openapi.json"
 # Servers differ per environment, so the committed contract is rendered without them.
+# The engine is lazy, so this placeholder database is never contacted during export.
 _EXPORT_SETTINGS = Settings(
-    environment=Environment.LOCAL, public_base_url=AnyHttpUrl("http://localhost:8000")
+    environment=Environment.LOCAL,
+    public_base_url=AnyHttpUrl("http://localhost:8000"),
+    database_url=SecretStr("postgresql+psycopg://export@localhost:1/unused"),
 )
 
 

@@ -72,6 +72,30 @@ Rules:
 - A licence whose `issued_at` falls outside the key's window is rejected.
 - **Proposed runtime rule (built in PR 9):** the running Relyxus builds the key set from keys embedded in the signed release. `public-keys/*.pem` in the install kit is for inspection only, so a customer cannot add a key of their own.
 
+### 5.1 Key-set document v1 (added 2026-10-14)
+
+Keys are loaded from a JSON document (schema `packages/schemas/licensing/trusted-key-set.v1.schema.json`):
+
+```json
+{
+  "key_set_version": 1,
+  "keys": [
+    {
+      "key_id": "apporine-license-prod-2026-10",
+      "environment": "production",
+      "algorithm": "ECDSA_P256_SHA256",
+      "valid_from": "2026-10-01T00:00:00Z",
+      "valid_until": null,
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----
+..."
+    }
+  ]
+}
+```
+
+- **Closed schema.** Unknown members are rejected, as are unknown versions, empty key lists, duplicate key IDs, non-P-256 keys and private-key PEM. Every one of these failures is a `KeySetConfigurationError`: a deployment fault, distinct from a bad licence.
+- **Where the file comes from.** It is what Apporine publishes alongside the plain `public-keys/*.pem` files (DEP-23.01) and what the runtime embeds (Q-33).
+
 ## 6. Verification order (fail closed until state evaluation)
 
 1. Size cap → strict JSON parse of envelope → envelope version → algorithm supported.

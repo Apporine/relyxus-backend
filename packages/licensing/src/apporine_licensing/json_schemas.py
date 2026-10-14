@@ -13,6 +13,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from apporine_licensing.envelope import LicenseEnvelope
+from apporine_licensing.key_set_document import TrustedKeySetDocument
 from apporine_licensing.payload import LicensePayload
 
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
@@ -23,6 +24,10 @@ SCHEMA_MODELS: dict[str, tuple[str, type[BaseModel]]] = {
         LicenseEnvelope,
     ),
     "license-payload.v1.schema.json": ("urn:apporine:licensing:license-payload:v1", LicensePayload),
+    "trusted-key-set.v1.schema.json": (
+        "urn:apporine:licensing:trusted-key-set:v1",
+        TrustedKeySetDocument,
+    ),
 }
 
 

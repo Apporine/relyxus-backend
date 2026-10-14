@@ -1,28 +1,45 @@
 """Fail CI when the API migration graph has more than one head (context.md §9)."""
 
-from pathlib import Path
+import re
 import sys
-
-from alembic.config import Config
-from alembic.script import ScriptDirectory
+from pathlib import Path
 
 API_ROOT = Path("services/api")
+VERSIONS_DIR = API_ROOT / "migrations" / "versions"
+_REVISION = re.compile(r'^revision\s*:\s*str\s*=\s*"([^"]+)"', re.MULTILINE)
+_DOWN = re.compile(r'^down_revision\s*:\s*str\s*\|\s*None\s*=\s*(?:"([^"]+)"|None)', re.MULTILINE)
+
+
+def _load_graph() -> tuple[dict[str, str | None], list[Path]]:
+    files = sorted(VERSIONS_DIR.glob("*.py"))
+    revisions: dict[str, str | None] = {}
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        revision_match = _REVISION.search(text)
+        if revision_match is None:
+            continue
+        revision = revision_match.group(1)
+        down_match = _DOWN.search(text)
+        down_revision = None if down_match is None else down_match.group(1)
+        revisions[revision] = down_revision
+    return revisions, files
 
 
 def main() -> int:
-    versions_dir = API_ROOT / "migrations" / "versions"
-    if not versions_dir.is_dir() or not any(versions_dir.glob("*.py")):
+    if not VERSIONS_DIR.is_dir() or not any(VERSIONS_DIR.glob("*.py")):
         return 0
-    config = Config(str(API_ROOT / "alembic.ini"))
-    script = ScriptDirectory.from_config(config)
-    heads = script.get_revisions("heads")
+    revisions, files = _load_graph()
+    if not revisions:
+        sys.stderr.write("Migration version files exist but no revision IDs were parsed.\n")
+        return 1
+    referenced = {down for down in revisions.values() if down is not None}
+    heads = [rev for rev in revisions if rev not in referenced]
     if len(heads) == 1:
         return 0
-    labels = ", ".join(revision.revision for revision in heads)
-    print(
-        f"Expected exactly one Alembic head, found {len(heads)}: {labels}",
-        file=sys.stderr,
+    sys.stderr.write(
+        f"Expected exactly one Alembic head, found {len(heads)}: {', '.join(sorted(heads))}\n"
     )
+    sys.stderr.write(f"Parsed {len(revisions)} revisions from {len(files)} files.\n")
     return 1
 
 

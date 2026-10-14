@@ -45,7 +45,9 @@ class IdentityService:
                 status=None,
             )
         email = user.email if user.email is not None else principal.email
-        display_name = user.display_name if user.display_name is not None else principal.display_name
+        display_name = user.display_name
+        if display_name is None:
+            display_name = principal.display_name
         return ResolvedIdentity(
             issuer=principal.issuer,
             subject=principal.subject,

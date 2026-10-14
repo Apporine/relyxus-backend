@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     oidc_jwks_url: AnyHttpUrl | None = None
     oidc_allowed_algorithms: tuple[str, ...] = ("RS256",)
     oidc_clock_leeway_seconds: NonNegativeInt = 30
+    license_trusted_key_vector_path: str | None = None
+    license_customer_id: str | None = None
+    license_deployment_id: str | None = None
+    license_key_environment: str = "production"
 
     @field_validator("database_url")
     @classmethod

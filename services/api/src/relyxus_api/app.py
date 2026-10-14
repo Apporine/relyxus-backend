@@ -3,7 +3,10 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import partial
+from pathlib import Path
 
+from apporine_licensing.key_set import KeyEnvironment
+from apporine_licensing.verifier import InstallationIdentity, LicenseVerifier
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -12,6 +15,9 @@ from relyxus_api.modules.audit.controller import router as audit_router
 from relyxus_api.modules.health.controller import router as health_router
 from relyxus_api.modules.health.service import DependencyProbe, HealthService
 from relyxus_api.modules.identity.controller import router as identity_router
+from relyxus_api.modules.license.controller import router as license_router
+from relyxus_api.modules.license.key_set_loader import load_key_set_from_golden_vector
+from relyxus_api.modules.license.service import LicenseRuntime
 from relyxus_api.shared.auth.access_token import AccessTokenVerifier, JwksSigningKeyResolver
 from relyxus_api.shared.config.settings import Environment, Settings, load_settings
 from relyxus_api.shared.db.engine import (
@@ -30,7 +36,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.4.6"
+API_CONTRACT_VERSION = "0.4.7"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 DOCS_PATH = "/docs"
@@ -67,12 +73,33 @@ def create_app(settings: Settings) -> FastAPI:
         allowed_algorithms=settings.oidc_allowed_algorithms,
         clock_leeway_seconds=settings.oidc_clock_leeway_seconds,
     )
+    app.state.license_runtime = _build_license_runtime(settings)
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router, responses=PROBLEM_RESPONSES)
-    for router in (identity_router, access_router, audit_router):
+    for router in (identity_router, access_router, audit_router, license_router):
         app.include_router(router, responses=PROBLEM_RESPONSES | AUTHENTICATED_RESPONSES)
     return app
+
+
+def _build_license_runtime(settings: Settings) -> LicenseRuntime | None:
+    if (
+        settings.license_trusted_key_vector_path is None
+        or settings.license_customer_id is None
+        or settings.license_deployment_id is None
+    ):
+        return None
+    key_set = load_key_set_from_golden_vector(Path(settings.license_trusted_key_vector_path))
+    verifier = LicenseVerifier(
+        key_set=key_set,
+        installation=InstallationIdentity(
+            product_id="relyxus",
+            customer_id=settings.license_customer_id,
+            deployment_id=settings.license_deployment_id,
+            environment=KeyEnvironment(settings.license_key_environment),
+        ),
+    )
+    return LicenseRuntime(verifier=verifier)
 
 
 def _build_probes(settings: Settings, database_engine: AsyncEngine) -> list[DependencyProbe]:

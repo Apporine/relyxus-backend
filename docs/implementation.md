@@ -81,6 +81,10 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A8 | `feat/api-audit-endpoints` | `GET /api/v1/audit-events`, chain verification HTTP | MPS-14.16, ADR-0003 §6 | in review |
 | A9 | `feat/api-idempotency-keys` | `Idempotency-Key` store, idempotent `POST /api/v1/audit-events` | MPS-22A.05, ADR-0003 §5 | in review |
 | A10 | `feat/api-etag-preconditions` | Weak `ETag` + `If-Match` (412) on `GET /workspaces/current` | MPS-22A.06, ADR-0003 §5 | in review |
+| A11 | `feat/api-me-provisioned` | `GET /me` includes DB user id, status, `is_provisioned` | MPS-14.10 | in review |
+| A12 | `feat/api-shared-constants` | Cross-cutting constants in `shared/constants.py` | context.md §2 | in review |
+| A13 | `feat/api-audit-role-gates` | Audit list/verify require audit-capable roles | MPS-14.02 | in review |
+| A14 | `feat/api-license-store` | Org licence install/status HTTP (`organization_licenses`) | LIC-7.07, DEP-23.07 | in review |
 
 ### Progress log
 
@@ -238,6 +242,20 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - **`PreconditionFailedError` (412)** and `assert_if_match`.
   - **`GET /api/v1/workspaces/current`:** returns weak `ETag` from `updated_at`; stale `If-Match` → 412.
   - Contract **0.4.3**; tests in `test_etag_preconditions.py` and `test_preconditions_unit.py`.
+
+- **A11 — 2026-10-14** — Provisioned identity on `/me`.
+  - **`GET /api/v1/me`:** adds `is_provisioned`, `user_id`, `status` from the database when the IdP subject is mapped.
+  - Contract **0.4.4**; integration tests in `test_me_provisioned.py`.
+
+- **A12 — 2026-10-14** — Shared constants module.
+  - **`shared/constants.py`:** workspace/correlation/idempotency headers and pagination limits (context.md §2).
+
+- **A13 — 2026-10-14** — Audit read role gates.
+  - **`GET /audit-events`** and **chain-verification** require auditor-class roles; contract **0.4.6**.
+
+- **A14 — 2026-10-14** — Organisation licence store.
+  - **`organization_licenses` (0007)**; **`GET /license/status`**, idempotent **`POST /license/install`**; offline verify via `apporine_licensing`.
+  - Contract **0.4.7**; `test_license_api.py` uses the golden vector.
 
 ---
 

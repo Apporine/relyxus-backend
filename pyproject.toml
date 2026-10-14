@@ -3,10 +3,11 @@ name = "relyxus-backend"
 version = "0.1.0"
 description = "Relyxus backend workspace (uv workspace root; not a distributable package)"
 requires-python = ">=3.13"
-dependencies = ["apporine-licensing"]
+dependencies = ["apporine-licensing", "relyxus-api"]
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.13",
     "mypy>=1.15",
     "pre-commit>=4.0",
     "pytest>=8.3",
@@ -18,15 +19,16 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/licensing"]
+members = ["packages/licensing", "services/api"]
 
 [tool.uv.sources]
 apporine-licensing = { workspace = true }
+relyxus-api = { workspace = true }
 
 [tool.ruff]
 target-version = "py313"
 line-length = 100
-src = ["packages/*/src", "packages/*/tests"]
+src = ["packages/*/src", "packages/*/tests", "services/*/src", "services/*/tests"]
 
 [tool.ruff.lint]
 select = [
@@ -62,8 +64,8 @@ ignore = [
 python_version = "3.13"
 strict = true
 warn_unreachable = true
-mypy_path = "packages/licensing/src:packages/licensing/tests"
-files = ["packages"]
+mypy_path = "packages/licensing/src:services/api/src:packages/licensing/tests"
+files = ["packages", "services"]
 explicit_package_bases = true
 plugins = ["pydantic.mypy"]
 
@@ -73,7 +75,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
-testpaths = ["packages"]
+testpaths = ["packages", "services"]
 pythonpath = ["packages/licensing/tests"]
 addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
 xfail_strict = true

@@ -1113,6 +1113,13 @@ Scope note: `ACP` marks items that live in the Apporine Admin Control Plane / is
 
 `BLOCKING` = I cannot derive the feature plan (step 3) or write the affected code correctly without an answer. Everything else has a recommended default that I will **not** apply until you confirm it.
 
+
+## E0. Decisions taken (2026-10-14)
+
+The product owner accepted the recommendations for these questions. They are recorded in ADR-0001 (Q-04, Q-14, Q-29, Q-31) and ADR-0003 (Q-01, Q-02, Q-03, Q-09, Q-15, Q-16, Q-18, Q-19, Q-20, Q-21, Q-22).
+
+Still open: Q-07a, Q-08, Q-10, Q-11, Q-17, Q-23, Q-24, Q-26, Q-27, Q-28, Q-32, Q-33, Q-34.
+
 ## E1. Conflicts between context.md (HOW) and the specifications
 
 **Q-01 `BLOCKING` Response and error envelope.**

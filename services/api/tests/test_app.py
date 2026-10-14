@@ -31,6 +31,33 @@ def test_docs_are_never_public_in_production(client_for: ClientFactory) -> None:
     assert client.get("/health").status_code == 200
 
 
+def test_cors_preflight_is_allowed_outside_production(client_for: ClientFactory) -> None:
+    client = client_for(Environment.LOCAL)
+    response = client.options(
+        "/api/v1/meta",
+        headers={
+            "Origin": "http://localhost:8000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+
+
+def test_cors_preflight_is_not_opened_in_production(client_for: ClientFactory) -> None:
+    client = client_for(Environment.PRODUCTION)
+    response = client.options(
+        "/api/v1/meta",
+        headers={
+            "Origin": "http://example.test",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 405
+
+
 def test_spec_lists_the_environment_server(client_for: ClientFactory) -> None:
     servers = client_for(Environment.STAGING).get("/docs.json").json()["servers"]
 

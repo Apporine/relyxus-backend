@@ -1,0 +1,33 @@
+# Trial host stack for a single EC2 instance (not production).
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: relyxus
+      POSTGRES_PASSWORD: relyxus-local
+      POSTGRES_DB: relyxus
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U relyxus -d relyxus"]
+      interval: 5s
+      retries: 10
+    mem_limit: 256m
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "80:8000"
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

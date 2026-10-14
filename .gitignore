@@ -22,7 +22,11 @@ htmlcov/
 
 # Key material must never be committed (MP-14.01)
 *.key
+*.pem
 *private*.pem
+
+# Local deploy bundle
+relyxus-deploy.zip
 
 # Editors / OS
 .idea/

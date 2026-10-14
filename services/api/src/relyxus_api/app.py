@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
+from starlette.middleware.cors import CORSMiddleware
 
 from apporine_licensing.key_set import KeyEnvironment
 from apporine_licensing.verifier import InstallationIdentity, LicenseVerifier
@@ -83,6 +84,14 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.license_runtime = _build_license_runtime(settings)
     app.state.health_service = HealthService(_build_probes(settings, database_engine, app))
     app.add_middleware(CorrelationIdMiddleware)
+    if settings.environment is not Environment.PRODUCTION:
+        # Browser clients on another origin/port otherwise see an empty failed request.
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     register_exception_handlers(app)
     app.include_router(health_router, responses=PROBLEM_RESPONSES)
     app.include_router(meta_router, responses=PROBLEM_RESPONSES)

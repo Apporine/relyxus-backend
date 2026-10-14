@@ -319,6 +319,13 @@
       },
       "LicenseStatusView": {
         "properties": {
+          "entitlements": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Entitlements",
+            "type": "array"
+          },
           "evaluated_at": {
             "format": "date-time",
             "title": "Evaluated At",
@@ -327,6 +334,11 @@
           "expires_at": {
             "format": "date-time",
             "title": "Expires At",
+            "type": "string"
+          },
+          "grace_ends_at": {
+            "format": "date-time",
+            "title": "Grace Ends At",
             "type": "string"
           },
           "has_current": {
@@ -353,6 +365,8 @@
           "revision",
           "state",
           "expires_at",
+          "grace_ends_at",
+          "entitlements",
           "evaluated_at"
         ],
         "title": "LicenseStatusView",
@@ -922,7 +936,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.5.0"
+    "version": "0.5.1"
   },
   "openapi": "3.1.0",
   "paths": {

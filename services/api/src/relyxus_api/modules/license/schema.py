@@ -17,5 +17,7 @@ class LicenseStatusView(BaseModel):
     revision: int
     state: str
     expires_at: datetime
+    grace_ends_at: datetime
+    entitlements: tuple[str, ...]
     evaluated_at: datetime
     has_current: bool = True

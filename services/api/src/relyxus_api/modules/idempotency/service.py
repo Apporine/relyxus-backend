@@ -10,6 +10,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.idempotency.model import IdempotencyRecord
+
+MAX_IDEMPOTENCY_KEY_LENGTH = 128
 from relyxus_api.modules.idempotency.repository import IdempotencyRepository
 from relyxus_api.shared.errors.app_errors import ConflictError, ValidationFailedError
 from relyxus_api.shared.utils.ids import new_uuid7
@@ -62,9 +64,9 @@ class IdempotencyService:
         payload: object,
     ) -> IdempotencyReservation | IdempotencyReplay:
         key = idempotency_key.strip()
-        if not key or len(key) > 128:
+        if not key or len(key) > MAX_IDEMPOTENCY_KEY_LENGTH:
             raise InvalidIdempotencyKeyError(
-                "Idempotency-Key must be 1–128 non-whitespace characters."
+                "Idempotency-Key must be 1-128 non-whitespace characters."
             )
         fingerprint = fingerprint_request(method, path, payload)
         existing = await self._repository.find_record(session, organization_id, key)

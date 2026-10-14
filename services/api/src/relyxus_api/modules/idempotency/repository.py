@@ -17,7 +17,9 @@ class IdempotencyRepository:
             )
         )
 
-    async def add_record(self, session: AsyncSession, record: IdempotencyRecord) -> IdempotencyRecord:
+    async def add_record(
+        self, session: AsyncSession, record: IdempotencyRecord
+    ) -> IdempotencyRecord:
         session.add(record)
         await session.flush()
         return record

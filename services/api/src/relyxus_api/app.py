@@ -13,7 +13,6 @@ from apporine_licensing.verifier import InstallationIdentity, LicenseVerifier
 from relyxus_api.modules.access.controller import router as access_router
 from relyxus_api.modules.audit.controller import router as audit_router
 from relyxus_api.modules.health.controller import router as health_router
-from relyxus_api.modules.health.meta_controller import router as meta_router
 from relyxus_api.modules.health.service import DependencyProbe, HealthService
 from relyxus_api.modules.identity.controller import router as identity_router
 from relyxus_api.modules.license.controller import router as license_router
@@ -85,7 +84,6 @@ def create_app(settings: Settings) -> FastAPI:
     app.add_middleware(CorrelationIdMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router, responses=PROBLEM_RESPONSES)
-    app.include_router(meta_router, responses=PROBLEM_RESPONSES)
     for router in (identity_router, access_router, audit_router, license_router, policy_router):
         app.include_router(router, responses=PROBLEM_RESPONSES | AUTHENTICATED_RESPONSES)
     return app

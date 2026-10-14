@@ -92,3 +92,6 @@ class TrustedKeySet:
 
     def find(self, key_id: str) -> TrustedKey | None:
         return self._keys.get(key_id)
+
+    def key_ids(self) -> tuple[str, ...]:
+        return tuple(sorted(self._keys))

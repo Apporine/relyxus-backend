@@ -1,0 +1,16 @@
+[project]
+name = "relyxus-cli"
+version = "0.1.0"
+description = "Relyxus operations CLI (Deployment Spec v1.2 Appendix B, §23.2)"
+requires-python = ">=3.13"
+dependencies = ["apporine-licensing"]
+
+[project.scripts]
+relyxus = "relyxus_cli.main:main"
+
+[tool.uv.sources]
+apporine-licensing = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.9.0,<0.14"]
+build-backend = "uv_build"

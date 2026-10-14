@@ -11,7 +11,8 @@ import time
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from relyxus_api.shared.observability.correlation import CORRELATION_HEADER, bind_correlation_id
+from relyxus_api.shared.constants import CORRELATION_HEADER
+from relyxus_api.shared.observability.correlation import bind_correlation_id
 
 logger = logging.getLogger(__name__)
 _MILLISECONDS_PER_SECOND = 1000

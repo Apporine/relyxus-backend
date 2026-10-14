@@ -19,7 +19,7 @@ from relyxus_api.shared.errors.app_errors import (
     PolicyDeniedError,
     ValidationFailedError,
 )
-from relyxus_api.shared.observability.correlation import CORRELATION_HEADER
+from relyxus_api.shared.constants import CORRELATION_HEADER
 from relyxus_api.shared.observability.logging import JsonLogFormatter
 
 PROBLEM_JSON = "application/problem+json"

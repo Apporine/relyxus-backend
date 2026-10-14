@@ -17,8 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessService
 from relyxus_api.shared.auth.dependencies import AuthenticatedPrincipalDependency
-
-WORKSPACE_HEADER = "X-Relyxus-Workspace-Id"
+from relyxus_api.shared.constants import WORKSPACE_HEADER
 
 
 @dataclass(frozen=True, slots=True)

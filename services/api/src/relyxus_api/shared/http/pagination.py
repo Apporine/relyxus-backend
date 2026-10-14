@@ -15,11 +15,9 @@ from typing import Annotated
 
 from fastapi import Depends, Query
 
+from relyxus_api.shared.constants import DEFAULT_PAGE_LIMIT, MAX_CURSOR_LENGTH, MAX_PAGE_LIMIT
 from relyxus_api.shared.errors.app_errors import ValidationFailedError
 
-DEFAULT_PAGE_LIMIT = 20
-MAX_PAGE_LIMIT = 100
-MAX_CURSOR_LENGTH = 512
 CURSOR_FORMAT_VERSION = 1
 
 type CursorPosition = tuple[str | int, ...]

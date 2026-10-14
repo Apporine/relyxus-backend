@@ -11,10 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.idempotency.model import IdempotencyRecord
 from relyxus_api.modules.idempotency.repository import IdempotencyRepository
+from relyxus_api.shared.constants import MAX_IDEMPOTENCY_KEY_LENGTH
 from relyxus_api.shared.errors.app_errors import ConflictError, ValidationFailedError
 from relyxus_api.shared.utils.ids import new_uuid7
-
-MAX_IDEMPOTENCY_KEY_LENGTH = 128
 
 
 class InvalidIdempotencyKeyError(ValidationFailedError):

@@ -50,12 +50,17 @@ src/
 - A module never imports another module's repository. Go through its service.
 - No file over ~300 lines. Split it.
 
+**Constants**
+- Cross-cutting constants (header names, pagination limits, timeouts, shared error codes, magic numbers) live in one place: `shared/constants.py` (or `shared/constants/` with a single re-export module if the file grows large).
+- Do not scatter the same literal across controllers, services, repositories, and tests — define it once and import it.
+- Constants used only inside one module may stay in that module; the moment a second file needs the value, move it to `shared/constants`.
+
 ---
 
 ## 3. No Duplication
 
 - Same logic in two places → extract to `shared/`.
-- Same string in two places → constant.
+- Same string in two places → constant in `shared/constants` (see §2).
 - Same query shape in two places → one repository method with parameters.
 - Copy-paste is a code review rejection.
 - Exception: do not abstract until the third occurrence. Two similar things may diverge.
@@ -327,6 +332,7 @@ hotfix/*  → urgent production fix, cut from main
 
 - [ ] Layer boundaries respected
 - [ ] No duplicated logic
+- [ ] Shared constants in `shared/constants`, not copy-pasted literals
 - [ ] Input validated at the edge
 - [ ] Errors typed and handled centrally
 - [ ] No secrets or hardcoded config

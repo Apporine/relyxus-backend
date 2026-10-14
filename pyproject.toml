@@ -18,7 +18,7 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*"]
+members = ["packages/licensing"]
 
 [tool.uv.sources]
 apporine-licensing = { workspace = true }
@@ -65,6 +65,12 @@ warn_unreachable = true
 mypy_path = "packages/licensing/src"
 files = ["packages"]
 explicit_package_bases = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 testpaths = ["packages"]

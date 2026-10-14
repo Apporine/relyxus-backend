@@ -13,3 +13,35 @@ class CanonicalJsonError(LicenseError):
     """A value or document is outside the canonical JSON subset defined in ADR-0002 §2."""
 
     code: ClassVar[str] = "LICENSE_CANONICAL_JSON_INVALID"
+
+
+class LicenseVerificationError(LicenseError):
+    """The artifact must not be trusted. Verification fails closed (ADR-0002 §6)."""
+
+    code: ClassVar[str] = "LICENSE_INVALID"
+
+
+class LicenseMalformedError(LicenseVerificationError):
+    """The envelope is not well-formed JSON of the expected shape."""
+
+    code: ClassVar[str] = "LICENSE_MALFORMED"
+
+
+class UnsupportedEnvelopeVersionError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_UNSUPPORTED_ENVELOPE_VERSION"
+
+
+class NonCanonicalPayloadError(LicenseVerificationError):
+    """The signed payload bytes are not in canonical form (ADR-0002 §1)."""
+
+    code: ClassVar[str] = "LICENSE_PAYLOAD_NOT_CANONICAL"
+
+
+class UnsupportedSchemaVersionError(LicenseVerificationError):
+    code: ClassVar[str] = "LICENSE_UNSUPPORTED_SCHEMA_VERSION"
+
+
+class LicensePayloadInvalidError(LicenseVerificationError):
+    """The payload violates the licence payload schema."""
+
+    code: ClassVar[str] = "LICENSE_PAYLOAD_INVALID"

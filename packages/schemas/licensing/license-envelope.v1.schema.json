@@ -1,0 +1,42 @@
+{
+  "$id": "urn:apporine:licensing:license-envelope:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Detached signature over the canonical payload bytes; unknown members are rejected.",
+  "properties": {
+    "algorithm": {
+      "pattern": "^[A-Z0-9_]{1,64}$",
+      "title": "Algorithm",
+      "type": "string"
+    },
+    "envelope_version": {
+      "minimum": 1,
+      "title": "Envelope Version",
+      "type": "integer"
+    },
+    "key_id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,127}$",
+      "title": "Key Id",
+      "type": "string"
+    },
+    "payload": {
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Payload",
+      "type": "string"
+    },
+    "signature": {
+      "pattern": "^[A-Za-z0-9_-]+$",
+      "title": "Signature",
+      "type": "string"
+    }
+  },
+  "required": [
+    "envelope_version",
+    "algorithm",
+    "key_id",
+    "payload",
+    "signature"
+  ],
+  "title": "LicenseEnvelopeV1",
+  "type": "object"
+}

@@ -4,7 +4,6 @@ import re
 import uuid
 from contextvars import ContextVar
 
-CORRELATION_HEADER = "X-Correlation-Id"
 _UNKNOWN = "-"
 # Accept a caller's ID only if it is short and harmless; otherwise mint our own, so log
 # lines can never be injected through this header.

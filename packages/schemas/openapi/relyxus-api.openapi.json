@@ -303,6 +303,61 @@
         "title": "HealthStatus",
         "type": "string"
       },
+      "InstallLicenseRequest": {
+        "properties": {
+          "artifact": {
+            "description": "Signed relyxus.license JSON document",
+            "title": "Artifact",
+            "type": "string"
+          }
+        },
+        "required": [
+          "artifact"
+        ],
+        "title": "InstallLicenseRequest",
+        "type": "object"
+      },
+      "LicenseStatusView": {
+        "properties": {
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "has_current": {
+            "default": true,
+            "title": "Has Current",
+            "type": "boolean"
+          },
+          "license_id": {
+            "format": "uuid",
+            "title": "License Id",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "license_id",
+          "revision",
+          "state",
+          "expires_at",
+          "evaluated_at"
+        ],
+        "title": "LicenseStatusView",
+        "type": "object"
+      },
       "ListEnvelope_AuditEventSummary_": {
         "properties": {
           "data": {
@@ -636,6 +691,24 @@
         "title": "SuccessEnvelope[CurrentIdentity]",
         "type": "object"
       },
+      "SuccessEnvelope_LicenseStatusView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LicenseStatusView"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[LicenseStatusView]",
+        "type": "object"
+      },
       "SuccessEnvelope_LivenessReport_": {
         "properties": {
           "data": {
@@ -799,7 +872,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.4.4"
+    "version": "0.4.7"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1099,6 +1172,190 @@
         "summary": "Verify the workspace audit hash chain",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/v1/license/install": {
+      "post": {
+        "operationId": "install_license_api_v1_license_install_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallLicenseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_LicenseStatusView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Install or replace the organisation licence",
+        "tags": [
+          "license"
+        ]
+      }
+    },
+    "/api/v1/license/status": {
+      "get": {
+        "description": "Uses `X-Relyxus-Workspace-Id` to resolve the organisation scope.",
+        "operationId": "get_license_status_api_v1_license_status_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_LicenseStatusView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Current organisation licence status",
+        "tags": [
+          "license"
         ]
       }
     },

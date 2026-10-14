@@ -1,0 +1,11 @@
+---
+description: Git commits and PRs must not carry Cursor co-author or marketing footers
+alwaysApply: true
+---
+
+# Git and PR attribution
+
+- Commit with `C:\Program Files\Git\cmd\git.exe` only. Use `-m` messages with **no** `Co-authored-by` trailers (especially not Cursor / cursoragent).
+- Do **not** append "Made with [Cursor](https://cursor.com)" to PR titles, bodies, or commit messages.
+- When creating PRs with `gh pr create`, keep the body free of tool attribution; strip any auto-appended Cursor footer before pushing.
+- Prefer squash-merge commit messages that are a single title line only (no co-author lines).

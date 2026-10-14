@@ -40,6 +40,7 @@ def test_spec_lists_the_environment_server(client_for: ClientFactory) -> None:
 def test_missing_required_configuration_fails_fast(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("RELYXUS_ENVIRONMENT", raising=False)
     monkeypatch.delenv("RELYXUS_PUBLIC_BASE_URL", raising=False)
+    monkeypatch.delenv("RELYXUS_DATABASE_URL", raising=False)
 
     with pytest.raises(ValidationError):
         load_settings()
@@ -56,6 +57,7 @@ def test_invalid_configuration_fails_fast(monkeypatch: pytest.MonkeyPatch) -> No
 def test_configuration_is_read_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RELYXUS_ENVIRONMENT", "staging")
     monkeypatch.setenv("RELYXUS_PUBLIC_BASE_URL", "https://api.staging.example.test")
+    monkeypatch.setenv("RELYXUS_DATABASE_URL", "postgresql+psycopg://app@db.internal/relyxus")
 
     settings = load_settings()
 

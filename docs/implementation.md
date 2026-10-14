@@ -69,7 +69,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A1 | `feat/api-service-skeleton` | Settings (fail fast), app factory, `/health`, `/ready`, `/docs`, `/docs.json`, OpenAPI export + drift test, ADR-0003 | TSD-11.01 (probes), MP-28.01, MPS-22A.03 (adapted), MP-9.01, context.md §6/§11 | in review |
 | A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | in review |
 | A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | in review |
-| A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | planned |
+| A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | in review |
 | A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | planned |
 
 ### Progress log
@@ -103,6 +103,22 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - **Requirements covered:** MPS-22A.04 (cursor pagination), MPS-15.07 (no counts), context.md §5 (bounded lists, capped limit).
 
   **Results:** ruff, mypy strict (51 files), pytest 207 passed.
+
+- **A4 — 2026-10-14** — Database foundation.
+  - **Driver and URL:** async SQLAlchemy 2.0 with psycopg 3. `RELYXUS_DATABASE_URL` is required, held as a secret (never in reprs or logs), and must use `postgresql+psycopg://`.
+  - **Startup:** the engine is lazy, so the app never blocks on the database at startup; the engine is disposed on shutdown.
+  - **Base model:** `Base` with deterministic constraint naming. `RecordColumns` adds UUIDv7 `id` (RFC 9562 generator, since Python 3.13 has none), `created_at` and `updated_at` (all timestamps timezone-aware).
+  - **Sessions:** `DatabaseSessionDependency` gives a session per request; services own `session.begin()`.
+  - **Readiness:** `/ready` probes the database with `SELECT 1` under a configurable timeout and returns 503 when it is unreachable.
+  - **Migrations:** Alembic with an async environment, the URL from the environment only, a migration template that requires a rollout and rollback note, and an empty `0001` baseline.
+  - **CI:** a PostgreSQL 18 + pgvector service container; integration tests are required there.
+  - **Local development:** `compose.yaml` and `.env.example`. Windows needs the selector event loop for psycopg async, which tests and Alembic set automatically.
+
+  **Results:**
+  - ruff and mypy strict (60 files) pass.
+  - Against a local throwaway PostgreSQL 16.3: pytest 217 passed (3 integration).
+  - Without a database: 214 passed, 3 skipped.
+  - `compose.yaml` is untested locally (no Docker on this machine); CI exercises PostgreSQL 18.
 
 ---
 

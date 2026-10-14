@@ -1,10 +1,9 @@
 import uuid
 from datetime import datetime
-from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from relyxus_api.modules.audit.model import AuditEvent, AuditOutcome, ActorType
+from relyxus_api.modules.audit.model import ActorType, AuditEvent, AuditOutcome
 
 
 class AuditEventSummary(BaseModel):

@@ -30,6 +30,10 @@ class LicenseCustomerMismatchError(ConflictError):
     code: ClassVar[str] = "LICENSE_CUSTOMER_MISMATCH"
 
 
+class LicenseDowngradeForbiddenError(ConflictError):
+    code: ClassVar[str] = "LICENSE_DOWNGRADE_FORBIDDEN"
+
+
 @dataclass(frozen=True, slots=True)
 class LicenseRuntime:
     verifier: LicenseVerifier
@@ -58,13 +62,7 @@ class LicenseService:
             raise NoLicenseInstalledError("No licence is installed for this organisation.")
         evaluated_at = now or datetime.now(UTC)
         verified = self._verify_artifact(runtime, record.artifact.encode(), evaluated_at)
-        return LicenseStatusView(
-            license_id=record.license_id,
-            revision=record.revision,
-            state=verified.state.value,
-            expires_at=verified.payload.expires_at,
-            evaluated_at=evaluated_at,
-        )
+        return self._to_status_view(record, verified, evaluated_at)
 
     async def install(
         self,
@@ -76,6 +74,13 @@ class LicenseService:
     ) -> LicenseStatusView:
         evaluated_at = now or datetime.now(UTC)
         verified = self._verify_artifact(runtime, artifact.encode(), evaluated_at)
+        current = await self._repository.find_current(session, organization_id)
+        if current is not None:
+            incoming_id = uuid.UUID(str(verified.payload.license_id))
+            if incoming_id == current.license_id and verified.payload.revision < current.revision:
+                raise LicenseDowngradeForbiddenError(
+                    "A licence revision older than the installed one cannot be installed."
+                )
         organization = await session.get(Organization, organization_id)
         if organization is None:
             raise RuntimeError("Organisation row missing during licence install")
@@ -97,11 +102,19 @@ class LicenseService:
             superseded_at=None,
         )
         await self._repository.add_record(session, record)
+        return self._to_status_view(record, verified, evaluated_at)
+
+    @staticmethod
+    def _to_status_view(
+        record: OrganizationLicense, verified: VerifiedLicense, evaluated_at: datetime
+    ) -> LicenseStatusView:
         return LicenseStatusView(
             license_id=record.license_id,
             revision=record.revision,
             state=verified.state.value,
             expires_at=verified.payload.expires_at,
+            grace_ends_at=verified.grace_ends_at,
+            entitlements=tuple(sorted(verified.payload.entitlements)),
             evaluated_at=evaluated_at,
         )
 

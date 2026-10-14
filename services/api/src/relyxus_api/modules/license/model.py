@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from relyxus_api.shared.db.base import Base, RecordColumns
@@ -9,6 +9,13 @@ from relyxus_api.shared.db.base import Base, RecordColumns
 
 class OrganizationLicense(RecordColumns, Base):
     __tablename__ = "organization_licenses"
+    __table_args__ = (
+        Index(
+            "ix_organization_licenses_organization_id_is_current",
+            "organization_id",
+            "is_current",
+        ),
+    )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("organizations.id", ondelete="RESTRICT")

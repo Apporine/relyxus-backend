@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -14,6 +14,11 @@ class IdempotencyRecord(RecordColumns, Base):
             "organization_id",
             "idempotency_key",
             name="uq_idempotency_records_organization_id_idempotency_key",
+        ),
+        Index(
+            "ix_idempotency_records_organization_id_created_at",
+            "organization_id",
+            "created_at",
         ),
     )
 

@@ -1,4 +1,8 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Header
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
 
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
 from relyxus_api.modules.access.repository import AccessRepository
@@ -6,8 +10,11 @@ from relyxus_api.modules.access.schema import WorkspaceSummary
 from relyxus_api.modules.access.service import WorkspaceAccessService
 from relyxus_api.shared.auth.dependencies import AuthenticatedPrincipalDependency
 from relyxus_api.shared.db.engine import DatabaseSessionDependency
+from relyxus_api.modules.tenancy.model import Workspace
 from relyxus_api.shared.http.envelope import ListEnvelope, SuccessEnvelope, wrap_page, wrap_success
+from relyxus_api.shared.http.etag import format_weak_etag
 from relyxus_api.shared.http.pagination import Page, PageRequestDependency
+from relyxus_api.shared.http.preconditions import assert_if_match
 
 WORKSPACES_TAG = "workspaces"
 
@@ -48,6 +55,15 @@ async def list_my_workspaces(
 )
 async def get_current_workspace(
     workspace: WorkspaceSessionDependency,
-) -> SuccessEnvelope[WorkspaceSummary]:
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> JSONResponse:
     listing = await _build_service().describe_workspace(workspace.session, workspace.access)
-    return wrap_success(WorkspaceSummary.from_listing(listing))
+    updated_at = await workspace.session.scalar(
+        select(Workspace.updated_at).where(Workspace.id == workspace.access.workspace_id)
+    )
+    if updated_at is None:
+        raise RuntimeError("Workspace row missing during current-workspace read")
+    etag = format_weak_etag(workspace.access.workspace_id, updated_at)
+    assert_if_match(etag, if_match)
+    envelope = wrap_success(WorkspaceSummary.from_listing(listing))
+    return JSONResponse(content=envelope.model_dump(mode="json"), headers={"ETag": etag})

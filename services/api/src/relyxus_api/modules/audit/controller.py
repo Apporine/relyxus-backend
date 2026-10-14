@@ -45,9 +45,7 @@ async def list_audit_events(
         workspace.session, workspace.access.workspace_id, page_request
     )
     summaries = [AuditEventSummary.from_event(event) for event in page.items]
-    return wrap_page(
-        Page(items=summaries, next_cursor=page.next_cursor, limit=page.limit)
-    )
+    return wrap_page(Page(items=summaries, next_cursor=page.next_cursor, limit=page.limit))
 
 
 @router.get(
@@ -59,9 +57,7 @@ async def list_audit_events(
 async def verify_audit_chain(
     workspace: AuditReadWorkspaceDependency,
 ) -> SuccessEnvelope[ChainVerificationReport]:
-    failures = await _service().verify_chain(
-        workspace.session, workspace.access.workspace_id
-    )
+    failures = await _service().verify_chain(workspace.session, workspace.access.workspace_id)
     report = ChainVerificationReport(
         chain_id=workspace.access.workspace_id,
         is_valid=not failures,

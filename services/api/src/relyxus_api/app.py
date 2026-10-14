@@ -5,11 +5,11 @@ from contextlib import asynccontextmanager
 from functools import partial
 from pathlib import Path
 
-from apporine_licensing.key_set import KeyEnvironment
-from apporine_licensing.verifier import InstallationIdentity, LicenseVerifier
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from apporine_licensing.key_set import KeyEnvironment
+from apporine_licensing.verifier import InstallationIdentity, LicenseVerifier
 from relyxus_api.modules.access.controller import router as access_router
 from relyxus_api.modules.audit.controller import router as audit_router
 from relyxus_api.modules.health.controller import router as health_router
@@ -144,9 +144,7 @@ def _build_probes(
                     return False
                 return view.state in ("active", "grace")
 
-        probes.append(
-            DependencyProbe(LICENSE_READINESS_PROBE_NAME, commercial_license_ready)
-        )
+        probes.append(DependencyProbe(LICENSE_READINESS_PROBE_NAME, commercial_license_ready))
     return probes
 
 

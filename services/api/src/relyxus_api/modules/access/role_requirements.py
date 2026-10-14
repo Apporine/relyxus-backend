@@ -29,9 +29,7 @@ async def require_audit_read_access(
     workspace: WorkspaceSessionDependency,
 ) -> AsyncIterator[WorkspaceSession]:
     if not _AUDIT_READ_ROLES.intersection(workspace.access.roles):
-        raise InsufficientWorkspaceRoleError(
-            "This workspace role cannot read the audit log."
-        )
+        raise InsufficientWorkspaceRoleError("This workspace role cannot read the audit log.")
     yield workspace
 
 

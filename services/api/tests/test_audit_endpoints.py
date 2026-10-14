@@ -111,9 +111,9 @@ def test_list_audit_events_pages(client: TestClient) -> None:
 
 
 def test_chain_verification_reports_valid(client: TestClient) -> None:
-    body = client.get(
-        "/api/v1/audit-events/chain-verification", headers=_auth("sub-amira")
-    ).json()["data"]
+    body = client.get("/api/v1/audit-events/chain-verification", headers=_auth("sub-amira")).json()[
+        "data"
+    ]
 
     assert body["is_valid"] is True
     assert body["chain_id"] == str(WORKSPACE_A1)

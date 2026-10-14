@@ -19,8 +19,7 @@ from tenancy_fixtures import ORG_B, seed_two_organisations_with_members
 pytestmark = pytest.mark.integration
 
 GOLDEN_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "packages/licensing/tests/vectors/golden-license-v1.json"
+    Path(__file__).resolve().parents[3] / "packages/licensing/tests/vectors/golden-license-v1.json"
 )
 GOLDEN = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 

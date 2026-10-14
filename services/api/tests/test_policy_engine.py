@@ -26,9 +26,9 @@ def test_policy_engine_status_stub() -> None:
     bind_token_only_identity(app)
     app.state.access_token_verifier = _AnyBearerVerifier()
     client = TestClient(app)
-    data = client.get(
-        "/api/v1/policy/engine", headers={"Authorization": "Bearer sub-test"}
-    ).json()["data"]
+    data = client.get("/api/v1/policy/engine", headers={"Authorization": "Bearer sub-test"}).json()[
+        "data"
+    ]
 
     assert data["mode"] == "stub"
     assert data["bundle_configured"] is False

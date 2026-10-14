@@ -8,14 +8,19 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import AnyHttpUrl, SecretStr
 
-from api_test_support import TEST_OIDC_AUDIENCE, TEST_OIDC_ISSUER, make_settings
+from api_test_support import TEST_OIDC_AUDIENCE, TEST_OIDC_ISSUER
 from db_test_support import migrate_and_reset, require_test_database_url, run_as_superuser
 from relyxus_api.app import create_app
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER
+from relyxus_api.modules.tenancy.model import Organization
 from relyxus_api.shared.auth.access_token import AuthenticatedPrincipal
 from relyxus_api.shared.config.settings import Environment, Settings
-from tenancy_fixtures import ORG_B, WORKSPACE_B1, seed_two_organisations_with_members
-from relyxus_api.modules.tenancy.model import Organization
+from tenancy_fixtures import (
+    ORG_B,
+    WORKSPACE_B1,
+    principal_for,
+    seed_two_organisations_with_members,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -43,6 +48,7 @@ def _license_settings(database_url: str) -> Settings:
 def database_url() -> str:
     url = require_test_database_url()
     migrate_and_reset(url)
+
     async def bind_customer(session) -> None:
         await seed_two_organisations_with_members(session)
         org = await session.get(Organization, ORG_B)
@@ -55,8 +61,6 @@ def database_url() -> str:
 
 class _SubjectTokenVerifier:
     def verify(self, token: str) -> AuthenticatedPrincipal:
-        from tenancy_fixtures import principal_for
-
         return principal_for(token)
 
 

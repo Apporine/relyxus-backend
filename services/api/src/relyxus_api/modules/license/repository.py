@@ -37,7 +37,5 @@ class LicenseRepository:
         await session.flush()
         return record
 
-    async def mark_superseded_now(
-        self, session: AsyncSession, organization_id: uuid.UUID
-    ) -> None:
+    async def mark_superseded_now(self, session: AsyncSession, organization_id: uuid.UUID) -> None:
         await self.supersede_current(session, organization_id, datetime.now(UTC))

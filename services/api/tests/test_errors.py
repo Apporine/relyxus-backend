@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from api_test_support import make_settings
 from relyxus_api.app import create_app
+from relyxus_api.shared.constants import CORRELATION_HEADER
 from relyxus_api.shared.errors.app_errors import (
     AppError,
     AuthenticationRequiredError,
@@ -19,7 +20,6 @@ from relyxus_api.shared.errors.app_errors import (
     PolicyDeniedError,
     ValidationFailedError,
 )
-from relyxus_api.shared.constants import CORRELATION_HEADER
 from relyxus_api.shared.observability.logging import JsonLogFormatter
 
 PROBLEM_JSON = "application/problem+json"

@@ -77,6 +77,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A6a | `feat/api-access-token-auth` | Keycloak OIDC access-token verification, 401 challenges, `GET /api/v1/me` | MPS-14.10 (token side), TSD-9.01, ADR-0003 §7, context.md §10 | in review |
 | A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | in review |
 | A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | in review |
+| A7 | `feat/api-audit-hash-chain` | Append-only `audit_events`, SHA-256 hash chain per workspace/org, verify | MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6, Q-19 | in review |
 
 ### Progress log
 
@@ -210,6 +211,15 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - 401 without a token
   - current workspace details and roles
   - 403 `WORKSPACE_ACCESS_DENIED` for same org without a grant, another org, and a nonexistent workspace
+
+- **A7 — 2026-10-14** — Tamper-evident audit hash chain.
+  - **`audit_events` table** (migration `0005`): one chain per workspace (`chain_id = workspace_id`) or per organisation when `workspace_id` is null; monotonic `sequence`, RFC 8785 canonical JSON hashed with SHA-256 (via `apporine_licensing.canonical_json`).
+  - **Append-only:** `BEFORE UPDATE` and `BEFORE DELETE` triggers reject mutations; forced RLS on `organization_id`.
+  - **`AuditService.append`:** transaction-scoped `pg_advisory_xact_lock` per chain, links `previous_hash`, assigns the next sequence.
+  - **`verify_chain` / `verify_events`:** recomputes hashes and linkage; naive UTC timestamps from PostgreSQL are normalised before hashing.
+  - **Requirements covered:** MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6 (Q-19). Evidence ledger remains a separate future chain.
+
+  **Results:** ruff and mypy strict pass; pytest 270 passed against local PostgreSQL (integration). Tests cover model/migration drift, workspace and org chains, cross-tenant append blocked, immutability triggers, and offline tamper detection.
 
 ---
 

@@ -21,7 +21,13 @@ from relyxus_api.shared.db.engine import create_session_factory
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 PROBE_ROLE = "relyxus_rls_probe"
 # Child tables first so deletes respect foreign keys.
-TENANT_TABLES = ("workspace_memberships", "users", "workspaces", "organizations")
+TENANT_TABLES = (
+    "audit_events",
+    "workspace_memberships",
+    "users",
+    "workspaces",
+    "organizations",
+)
 
 _CREATE_PROBE_ROLE = (
     f"DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{PROBE_ROLE}') "
@@ -59,8 +65,8 @@ def migrate_and_reset(url: str) -> None:
             await connection.execute(
                 text(f"GRANT SELECT, INSERT, UPDATE, DELETE ON {tables} TO {PROBE_ROLE}")
             )
-            for table in TENANT_TABLES:
-                await connection.execute(text(f"DELETE FROM {table}"))  # noqa: S608
+            # TRUNCATE avoids firing row DELETE triggers (audit_events is append-only).
+            await connection.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
         await engine.dispose()
 
     asyncio.run(reset())

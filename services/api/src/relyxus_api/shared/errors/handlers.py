@@ -18,7 +18,8 @@ from relyxus_api.shared.errors.problem_details import (
     ProblemDetails,
     build_problem_type,
 )
-from relyxus_api.shared.observability.correlation import CORRELATION_HEADER, get_correlation_id
+from relyxus_api.shared.constants import CORRELATION_HEADER
+from relyxus_api.shared.observability.correlation import get_correlation_id
 
 logger = logging.getLogger(__name__)
 

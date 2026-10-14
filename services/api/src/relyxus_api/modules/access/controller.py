@@ -8,9 +8,9 @@ from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceS
 from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.schema import WorkspaceSummary
 from relyxus_api.modules.access.service import WorkspaceAccessService
+from relyxus_api.modules.tenancy.model import Workspace
 from relyxus_api.shared.auth.dependencies import AuthenticatedPrincipalDependency
 from relyxus_api.shared.db.engine import DatabaseSessionDependency
-from relyxus_api.modules.tenancy.model import Workspace
 from relyxus_api.shared.http.envelope import ListEnvelope, SuccessEnvelope, wrap_page, wrap_success
 from relyxus_api.shared.http.etag import format_weak_etag
 from relyxus_api.shared.http.pagination import Page, PageRequestDependency

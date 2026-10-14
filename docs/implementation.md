@@ -67,7 +67,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
 | A1 | `feat/api-service-skeleton` | Settings (fail fast), app factory, `/health`, `/ready`, `/docs`, `/docs.json`, OpenAPI export + drift test, ADR-0003 | TSD-11.01 (probes), MP-28.01, MPS-22A.03 (adapted), MP-9.01, context.md §6/§11 | in review |
-| A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | planned |
+| A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | in review |
 | A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | planned |
 | A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | planned |
 | A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | planned |
@@ -83,6 +83,17 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
   - Test client uses `httpx2` (Starlette 1.8 deprecates `httpx`).
 
   **Results:** ruff, mypy strict, pytest 174 passed. Manual uvicorn run: `/health` 200, `/ready` 200, `/docs` 200; startup without the base URL fails fast.
+
+- **A2 — 2026-10-14** — Errors and observability.
+  - **Typed errors:** `AppError` hierarchy, one class per MP-34.01 category: validation 422, authentication 401, permission 403, policy denial 403, licence problem 403, not found 404, conflict 409, dependency unavailable 503, internal 500. Features subclass these with their own stable `code`.
+  - **One global handler** turns every failure into RFC 9457 `application/problem+json`. The body has a URN `type`, `code`, `correlation_id` and `instance`, plus per-field `errors` for validation. It never includes input values, stack traces or SQL.
+  - **Framework errors** are covered too: unknown routes, wrong methods and unexpected exceptions also return problem details.
+  - **Correlation ID middleware** (pure ASGI): accepts a safe caller ID or mints a UUID, echoes `X-Correlation-Id`, and logs method, path, status and duration only, never query strings, headers or bodies.
+  - **Logging:** JSON formatter; the correlation ID is stamped when the log record is created.
+  - **Contract:** OpenAPI documents 422/500 problem responses; version 0.2.0.
+  - **Tooling:** Ruff `max-args=6`; mypy excludes `conftest.py`, since two same-named modules can't be checked in one run.
+
+  **Results:** ruff, mypy strict (49 files), pytest 192 passed.
 
 ---
 

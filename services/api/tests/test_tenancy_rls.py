@@ -5,15 +5,10 @@ run as one would prove nothing.
 """
 
 import asyncio
-import os
 import uuid
-from collections.abc import Awaitable, Callable
-from pathlib import Path
 
 import pytest
-from alembic import command
 from alembic.autogenerate import compare_metadata
-from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
@@ -21,7 +16,15 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 import relyxus_api.models  # noqa: F401  (registers every table on Base.metadata)
-from api_test_support import get_test_database_url, make_settings
+from api_test_support import make_settings
+from db_test_support import (
+    PROBE_ROLE,
+    SessionWork,
+    migrate_and_reset,
+    require_test_database_url,
+    run_as_probe_role,
+    run_as_superuser,
+)
 from relyxus_api.app import create_app
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
 from relyxus_api.modules.tenancy.model import Organization, Workspace
@@ -30,83 +33,49 @@ from relyxus_api.shared.db.base import Base
 from relyxus_api.shared.db.engine import create_session_factory, is_row_level_security_enforced
 
 pytestmark = pytest.mark.integration
-ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
-PROBE_ROLE = "relyxus_rls_probe"
 ORG_A, ORG_B = uuid.uuid4(), uuid.uuid4()
 WORKSPACE_A, WORKSPACE_B = uuid.uuid4(), uuid.uuid4()
-
-type TenantWork[ResultT] = Callable[[AsyncSession], Awaitable[ResultT]]
 
 
 @pytest.fixture(scope="module")
 def database_url() -> str:
-    url = get_test_database_url()
-    if url is None:
-        if os.environ.get("RELYXUS_REQUIRE_INTEGRATION") == "1":
-            pytest.fail("RELYXUS_TEST_DATABASE_URL is required in this environment")
-        pytest.skip("RELYXUS_TEST_DATABASE_URL not set")
-    config = Config(str(ALEMBIC_INI))
-    config.attributes["database_url"] = url
-    command.upgrade(config, "head")
-    asyncio.run(_seed_two_tenants(url))
+    url = require_test_database_url()
+    migrate_and_reset(url)
+    run_as_superuser(url, _seed_two_tenants)
     return url
 
 
-async def _seed_two_tenants(url: str) -> None:
-    engine = create_async_engine(url)
-    async with engine.begin() as connection:
-        await connection.execute(
-            text(
-                f"DO $$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{PROBE_ROLE}')"
-                f" THEN CREATE ROLE {PROBE_ROLE} NOLOGIN NOSUPERUSER NOBYPASSRLS; END IF; END $$"
+async def _seed_two_tenants(session: AsyncSession) -> None:
+    for organization_id, workspace_id, key in (
+        (ORG_A, WORKSPACE_A, "alpha"),
+        (ORG_B, WORKSPACE_B, "bravo"),
+    ):
+        session.add(
+            Organization(
+                id=organization_id, name=key, deployment_mode="saas", default_region="eu-west-2"
             )
         )
-        await connection.execute(
-            text(
-                f"GRANT SELECT, INSERT, UPDATE, DELETE ON organizations, workspaces TO {PROBE_ROLE}"
+        await session.flush()
+        session.add(
+            Workspace(
+                id=workspace_id,
+                organization_id=organization_id,
+                key=key,
+                name=key,
+                data_residency_region="eu-west-2",
             )
         )
-        await connection.execute(text("DELETE FROM workspaces"))
-        await connection.execute(text("DELETE FROM organizations"))
-    sessions = create_session_factory(engine)
-    async with sessions() as session, session.begin():
-        for organization_id, workspace_id, key in (
-            (ORG_A, WORKSPACE_A, "alpha"),
-            (ORG_B, WORKSPACE_B, "bravo"),
-        ):
-            session.add(
-                Organization(
-                    id=organization_id, name=key, deployment_mode="saas", default_region="eu-west-2"
-                )
-            )
-            await session.flush()
-            session.add(
-                Workspace(
-                    id=workspace_id,
-                    organization_id=organization_id,
-                    key=key,
-                    name=key,
-                    data_residency_region="eu-west-2",
-                )
-            )
-    await engine.dispose()
 
 
 def _run_as_tenant[ResultT](
-    url: str, context: TenantContext | None, work: TenantWork[ResultT]
+    url: str, context: TenantContext | None, work: SessionWork[ResultT]
 ) -> ResultT:
-    async def run() -> ResultT:
-        engine = create_async_engine(url)
-        try:
-            async with create_session_factory(engine)() as session, session.begin():
-                await session.execute(text(f"SET LOCAL ROLE {PROBE_ROLE}"))
-                if context is not None:
-                    await apply_tenant_context(session, context)
-                return await work(session)
-        finally:
-            await engine.dispose()
+    async def with_context(session: AsyncSession) -> ResultT:
+        if context is not None:
+            await apply_tenant_context(session, context)
+        return await work(session)
 
-    return asyncio.run(run())
+    return run_as_probe_role(url, with_context)
 
 
 async def _visible_workspace_ids(session: AsyncSession) -> set[uuid.UUID]:

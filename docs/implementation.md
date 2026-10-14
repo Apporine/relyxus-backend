@@ -85,6 +85,9 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A12 | `feat/api-shared-constants` | Cross-cutting constants in `shared/constants.py` | context.md §2 | in review |
 | A13 | `feat/api-audit-role-gates` | Audit list/verify require audit-capable roles | MPS-14.02 | in review |
 | A14 | `feat/api-license-store` | Org licence install/status HTTP (`organization_licenses`) | LIC-7.07, DEP-23.07 | in review |
+| A15 | `feat/api-prometheus-metrics` | `GET /metrics` Prometheus text exposition | TSD-11.01, MP-28.01 | in review |
+| — | `feat/dev-keycloak-compose` | Keycloak 26 in Compose + realm import for local OIDC | TSD-9.01, Q-21 | in review |
+| — | `chore/policy-opa-skeleton` | `policy/` placeholder for future OPA bundles | MPS-22.x | in review |
 
 ### Progress log
 
@@ -256,6 +259,14 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 - **A14 — 2026-10-14** — Organisation licence store.
   - **`organization_licenses` (0007)**; **`GET /license/status`**, idempotent **`POST /license/install`**; offline verify via `apporine_licensing`.
   - Contract **0.4.7**; `test_license_api.py` uses the golden vector.
+
+- **A15 — 2026-10-14** — Prometheus metrics endpoint.
+  - **`GET /metrics`:** text exposition with `relyxus_up`, `relyxus_ready`, `relyxus_api_info`.
+  - Contract **0.4.8**; unit tests in `test_metrics.py`.
+
+- **Dev — 2026-10-14** — Keycloak in Docker Compose with imported `relyxus` realm (`infra/keycloak/`).
+
+- **Dev — 2026-10-14** — `policy/` README placeholder for OPA bundles; README tooling table.
 
 ---
 

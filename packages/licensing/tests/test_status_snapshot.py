@@ -29,9 +29,7 @@ def test_verify_status_snapshot_accepts_valid_document(
     )
     key_set = TrustedKeySet([production_key])
 
-    verified = verify_status_snapshot(
-        document, key_set, KeyEnvironment.PRODUCTION, INSTALLATION
-    )
+    verified = verify_status_snapshot(document, key_set, KeyEnvironment.PRODUCTION, INSTALLATION)
 
     assert verified.payload.commercial_status is CommercialStatus.SUSPENDED
     assert verified.signing_key_id == PRODUCTION_KEY_ID

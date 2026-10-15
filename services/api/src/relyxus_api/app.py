@@ -52,7 +52,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.21.0"
+API_CONTRACT_VERSION = "0.22.0"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 LICENSE_READINESS_PROBE_NAME = "commercial_license"

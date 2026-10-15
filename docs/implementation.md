@@ -300,6 +300,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I15 | `feat/incident-task-conversion` | `POST …/tasks/{id}/follow-up` moves an unfinished task to a follow-up at resolution; task list `status` filter; DB sessions pinned to UTC | MPS-11.21, MPS-20.32, MPS-11.32 (unresolved tasks become follow-ups) | in review |
 | I16 | `feat/incident-review` | Post-incident review: created on resolve (owner = IC), Draft → In review → Approved → Published, lessons required SEV1/SEV2, edit/reassign, start for earlier incidents (migration 0021) | MPS-8A.11, MPS-13.12, MPS-13.16, MPS-20.50 (partial) | in review |
 | I17 | `feat/incident-review-signoff` | Required reviewers and sign-offs: choose reviewers, sign off while in review, approval gate, sign-offs cleared on send-back, IC default reviewer for SEV1/SEV2 (migration 0022) | MPS-13.13 (partial), MPS-13.17 (sign-off part) | in review |
+| I18 | `feat/incident-closure` | Closure gate: review owner/owner closes; approved review, no unfinished tasks, SEV1/SEV2 mandatory follow-ups complete + root cause; owner exception with reason; review locked (migration 0023) | MPS-8A.12, MPS-13.04, MPS-13.17 | in review |
 
 ---
 
@@ -517,3 +518,18 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** service owner, Head of SRE, compliance officer and CISO defaults; reviewer reminders; review due dates (MPS-13.14).
 
   **Results:** ruff and mypy strict pass; pytest 481 passed against local PostgreSQL.
+
+- **I18 — 2026-10-15** — Closure gate. Incidents can now close.
+  - **Resolved → Closed** via the existing transitions endpoint. It is decided by the post-incident review owner (MPS-8A.12) or a workspace owner, not a workspace role.
+  - **Gates, in order:**
+    1. Review approved or published (409 `INCIDENT_REVIEW_REQUIRED`).
+    2. No unfinished live tasks (409 `INCIDENT_UNFINISHED_TASKS`, listing up to 10 IDs).
+    3. SEV1/SEV2: unfinished mandatory follow-ups have an owner and a due date (409 `INCIDENT_FOLLOW_UPS_INCOMPLETE`).
+    4. SEV1/SEV2: `root_cause` given (422 `INCIDENT_ROOT_CAUSE_REQUIRED`, MPS-13.04).
+  - **Exception:** a workspace owner's `closure_exception_reason` skips gates 1–3 but not the root cause (MPS-13.17 "authorised exception with reason"). Register **Q-39** is provisional on gate 2 and on who may grant exceptions.
+  - **Migration 0023:** `closed_by_user_id`, `root_cause`, `closure_exception_reason`, and a CHECK that a closed incident has `closed_at`.
+  - **Effects:** an approved or published review moves to `closed` (report lock). Root cause and exception are in the audit and timeline entry. Closed incidents keep tracking follow-ups; tasks stay frozen.
+  - ADR-0004 addendum. **Contract version 0.22.0.**
+  - **Not covered yet:** choosing the root cause from the Brain's top three (MPS-13.04); analytics update on close.
+
+  **Results:** ruff and mypy strict pass; pytest 488 passed against local PostgreSQL.

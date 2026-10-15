@@ -18,6 +18,7 @@ from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.shared.db.base import Base, RecordColumns
 
 TITLE_MAX_LENGTH = 500
+ROOT_CAUSE_MAX_LENGTH = 5000
 
 
 class IncidentSeverity(StrEnum):
@@ -78,6 +79,9 @@ class Incident(RecordColumns, Base):
             "(acknowledged_at IS NULL) = (acknowledged_by_user_id IS NULL)",
             name="acknowledged_has_actor",
         ),
+        CheckConstraint(
+            "lifecycle_state <> 'closed' OR closed_at IS NOT NULL", name="closed_has_time"
+        ),
         Index("ix_incidents_merged_into_incident_id", "merged_into_incident_id"),
         Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
         Index("ix_incidents_organization_id", "organization_id"),
@@ -106,5 +110,9 @@ class Incident(RecordColumns, Base):
     mitigated_at: Mapped[datetime | None]
     resolved_at: Mapped[datetime | None]
     closed_at: Mapped[datetime | None]
+    closed_by_user_id: Mapped[uuid.UUID | None]
+    # MPS-13.04 root cause captured at closing; MPS-13.17 authorised closure exception.
+    root_cause: Mapped[str | None] = mapped_column(String(ROOT_CAUSE_MAX_LENGTH))
+    closure_exception_reason: Mapped[str | None] = mapped_column(String(1000))
     cancelled_at: Mapped[datetime | None]
     merged_into_incident_id: Mapped[uuid.UUID | None]

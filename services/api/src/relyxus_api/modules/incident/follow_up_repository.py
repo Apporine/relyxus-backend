@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.incident.follow_up_model import IncidentFollowUp
@@ -37,4 +37,21 @@ class IncidentFollowUpRepository:
         if after_id is not None:
             query = query.where(IncidentFollowUp.id > after_id)
         follow_ups = await session.scalars(query.order_by(IncidentFollowUp.id).limit(limit))
+        return list(follow_ups)
+
+    async def list_incomplete_mandatory(
+        self, session: AsyncSession, incident_id: uuid.UUID, statuses: list[str], limit: int
+    ) -> list[IncidentFollowUp]:
+        """Mandatory follow-ups in the given statuses that lack an owner or a due date."""
+        follow_ups = await session.scalars(
+            select(IncidentFollowUp)
+            .where(
+                IncidentFollowUp.incident_id == incident_id,
+                IncidentFollowUp.is_mandatory.is_(True),
+                IncidentFollowUp.status.in_(statuses),
+                or_(IncidentFollowUp.owner_user_id.is_(None), IncidentFollowUp.due_at.is_(None)),
+            )
+            .order_by(IncidentFollowUp.id)
+            .limit(limit)
+        )
         return list(follow_ups)

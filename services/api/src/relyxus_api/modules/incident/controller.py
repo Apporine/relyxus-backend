@@ -150,8 +150,11 @@ async def get_incident(incident_id: uuid.UUID, workspace: WorkspaceSessionDepend
         "Applies one lifecycle transition (ADR-0004) and records it in the workspace audit "
         "chain in the same transaction. Each move is limited to the roles MPS-8A names; "
         "cancelling and reopening need a `reason`; merging needs `merged_into_incident_id`; "
-        "reopening is allowed only within the configured window after resolution; closing "
-        "returns 409 until post-incident review sign-off exists. Optional `If-Match` returns "
+        "reopening is allowed only within the configured window after resolution. Closing is "
+        "for the review owner or a workspace owner and needs an approved review, no "
+        "unfinished tasks and, for SEV1/SEV2, complete mandatory follow-ups and a "
+        "`root_cause`; a workspace owner may close with `closure_exception_reason` instead "
+        "of the review, task and follow-up gates. Optional `If-Match` returns "
         f"412 if the incident changed since it was read. Requires `{IDEMPOTENCY_HEADER}`."
     ),
     response_model=SuccessEnvelope[IncidentView],
@@ -189,6 +192,8 @@ async def transition_incident(
             reason=body.reason,
             merged_into_incident_id=body.merged_into_incident_id,
             if_match=if_match,
+            root_cause=body.root_cause,
+            closure_exception_reason=body.closure_exception_reason,
         ),
     )
     payload = _incident_body(incident)

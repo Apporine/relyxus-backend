@@ -4,12 +4,14 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from relyxus_api.modules.access.model import WorkspaceRole
 from relyxus_api.modules.team.model import (
     TEAM_DESCRIPTION_MAX_LENGTH,
     TEAM_KEY_PATTERN,
     TEAM_NAME_MAX_LENGTH,
     Team,
     TeamMember,
+    TeamRoleGrant,
 )
 
 TeamName = Annotated[
@@ -77,4 +79,20 @@ class TeamMemberView(BaseModel):
             user_id=member.user_id,
             added_by_user_id=member.added_by_user_id,
             added_at=member.created_at,
+        )
+
+
+class TeamRoleGrantView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    role: WorkspaceRole
+    granted_by_user_id: uuid.UUID
+    granted_at: datetime
+
+    @classmethod
+    def from_grant(cls, grant: TeamRoleGrant) -> "TeamRoleGrantView":
+        return cls(
+            role=WorkspaceRole(grant.role),
+            granted_by_user_id=grant.granted_by_user_id,
+            granted_at=grant.created_at,
         )

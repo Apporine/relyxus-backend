@@ -311,6 +311,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
 | C1 | `feat/teams` | Teams and team members: create/list/get/rename, add/remove members (owners and admins), audited (migration 0024) | MPS-14.01, MPS-14.02 (admin manages teams), MPS-20.05 (partial) | in review |
+| C2 | `feat/team-role-grants` | Team role grants unioned into workspace access (direct members only); grant/revoke by owners; RLS widened to own team rows (migration 0025) | Q-18 (ADR-0003 §6), MPS-14.01 "permissions follow team", MPS-20.06 (partial) | in review |
 
 ---
 
@@ -567,3 +568,18 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Archiving teams.
 
   **Results:** ruff and mypy strict pass; pytest 495 passed against local PostgreSQL.
+
+- **C2 — 2026-10-15** — Team role grants (Q-18).
+  - **Table `team_role_grants`** (migration 0025): one row per (team, role), composite FK to the team's workspace, role CHECK.
+  - **RLS:** reads widen like `workspace_memberships` so access resolves before a tenant is chosen.
+    - `team_members`: your tenant, or your own rows.
+    - `team_role_grants`: your tenant, or grants of teams you belong to.
+    - Writes still require the tenant context.
+  - **Access:** effective roles are direct grants plus team grants. Team roles only reach direct workspace members, so removing a membership removes everything. `GET /api/v1/workspaces/current` reports effective roles.
+  - **Endpoints:** `GET /api/v1/teams/{id}/roles`, plus `PUT` / `DELETE /teams/{id}/roles/{role}`. Workspace owners only (new `WorkspaceOwnerDependency`; register **Q-40**, provisional). Idempotent grant; audited (`team.role_granted` / `team.role_revoked`).
+  - **Contract version 0.24.0.**
+  - **Not covered yet:**
+    - Role conditions such as environment and region, which OPA will evaluate (Q-18, MPS-20.06).
+    - `GET /me/workspaces` still lists direct roles only.
+
+  **Results:** ruff and mypy strict pass; pytest 501 passed against local PostgreSQL. The new RLS probe checks that a user sees only their own team memberships and grants.

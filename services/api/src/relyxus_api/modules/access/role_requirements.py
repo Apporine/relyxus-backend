@@ -82,3 +82,17 @@ async def require_workspace_structure_access(
 WorkspaceStructureDependency = Annotated[
     WorkspaceSession, Depends(require_workspace_structure_access, scope="function")
 ]
+
+
+async def require_workspace_owner(
+    workspace: WorkspaceSessionDependency,
+) -> AsyncIterator[WorkspaceSession]:
+    """Role grants can hand out any role, including owner, so only owners make them (Q-40)."""
+    if WorkspaceRole.OWNER not in workspace.access.roles:
+        raise InsufficientWorkspaceRoleError("Only workspace owners can grant roles.")
+    yield workspace
+
+
+WorkspaceOwnerDependency = Annotated[
+    WorkspaceSession, Depends(require_workspace_owner, scope="function")
+]

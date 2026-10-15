@@ -1,7 +1,8 @@
 """Teams inside a workspace and their members (MPS-14.01, MPS-20.05).
 
-A user can be in several teams. Teams own services (MPS-20.08) and will carry role grants
-(Q-18) and on-call schedules (MPS-20.05) in later changes.
+A user can be in several teams. Teams own services (MPS-20.08) and carry workspace role
+grants that their members inherit (Q-18, ADR-0003 §6): a member's roles are their direct
+grants plus their teams' grants. On-call schedules (MPS-20.05) come later.
 """
 
 import uuid
@@ -16,6 +17,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from relyxus_api.modules.access.model import WorkspaceRole
 from relyxus_api.shared.db.base import Base, RecordColumns
 
 TEAM_NAME_MAX_LENGTH = 200
@@ -72,3 +74,32 @@ class TeamMember(RecordColumns, Base):
     team_id: Mapped[uuid.UUID]
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     added_by_user_id: Mapped[uuid.UUID]
+
+
+_ROLES_SQL = ", ".join(f"'{role.value}'" for role in WorkspaceRole)
+
+
+class TeamRoleGrant(RecordColumns, Base):
+    """A workspace role every member of the team holds in the team's workspace."""
+
+    __tablename__ = "team_role_grants"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["team_id", "workspace_id"],
+            ["teams.id", "teams.workspace_id"],
+            name="fk_team_role_grants_team_same_workspace",
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("team_id", "role", name="uq_team_role_grants_team_id_role"),
+        CheckConstraint(f"role IN ({_ROLES_SQL})", name="role"),
+        Index("ix_team_role_grants_organization_id", "organization_id"),
+        Index("ix_team_role_grants_workspace_id", "workspace_id"),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT")
+    )
+    workspace_id: Mapped[uuid.UUID]
+    team_id: Mapped[uuid.UUID]
+    role: Mapped[str] = mapped_column(String(32))
+    granted_by_user_id: Mapped[uuid.UUID]

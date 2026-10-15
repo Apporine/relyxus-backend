@@ -5,12 +5,17 @@ from fastapi import APIRouter, Header, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
-from relyxus_api.modules.access.role_requirements import WorkspaceStructureDependency
+from relyxus_api.modules.access.model import WorkspaceRole
+from relyxus_api.modules.access.role_requirements import (
+    WorkspaceOwnerDependency,
+    WorkspaceStructureDependency,
+)
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
 from relyxus_api.modules.team.model import Team
 from relyxus_api.modules.team.schema import (
     CreateTeamRequest,
     TeamMemberView,
+    TeamRoleGrantView,
     TeamView,
     UpdateTeamRequest,
 )
@@ -176,4 +181,47 @@ async def remove_team_member(
     team_id: uuid.UUID, user_id: uuid.UUID, workspace: WorkspaceStructureDependency
 ) -> Response:
     await TeamService().remove_member(workspace.session, workspace.access, team_id, user_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/teams/{team_id}/roles",
+    summary="List a team's role grants",
+    description="Workspace roles every member of the team inherits (Q-18).",
+    response_model=SuccessEnvelope[list[TeamRoleGrantView]],
+)
+async def list_team_roles(
+    team_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> SuccessEnvelope[list[TeamRoleGrantView]]:
+    grants = await TeamService().list_role_grants(workspace.session, workspace.access, team_id)
+    return wrap_success([TeamRoleGrantView.from_grant(grant) for grant in grants])
+
+
+@router.put(
+    "/teams/{team_id}/roles/{role}",
+    summary="Grant a workspace role to a team",
+    description=(
+        "Every member of the team holds this role in the workspace, in addition to their own "
+        "roles (Q-18). Applies only to people who are direct members of the workspace. "
+        "Idempotent. Workspace owners only. Recorded in the audit chain."
+    ),
+    response_model=SuccessEnvelope[TeamRoleGrantView],
+)
+async def grant_team_role(
+    team_id: uuid.UUID, role: WorkspaceRole, workspace: WorkspaceOwnerDependency
+) -> SuccessEnvelope[TeamRoleGrantView]:
+    grant = await TeamService().grant_role(workspace.session, workspace.access, team_id, role)
+    return wrap_success(TeamRoleGrantView.from_grant(grant))
+
+
+@router.delete(
+    "/teams/{team_id}/roles/{role}",
+    summary="Revoke a team's workspace role",
+    description="Workspace owners only. 404 if the team does not hold the role.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def revoke_team_role(
+    team_id: uuid.UUID, role: WorkspaceRole, workspace: WorkspaceOwnerDependency
+) -> Response:
+    await TeamService().revoke_role(workspace.session, workspace.access, team_id, role)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

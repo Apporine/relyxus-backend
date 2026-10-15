@@ -8,7 +8,7 @@ can never commit without its audit entry (MPS-22A.14).
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,7 @@ from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActi
 from relyxus_api.modules.incident.affected_service_model import IncidentAffectedService
 from relyxus_api.modules.incident.affected_service_repository import AffectedServiceRepository
 from relyxus_api.modules.incident.affected_service_rules import require_linkable_services
+from relyxus_api.modules.incident.field_value_writer import FieldValueWriter
 from relyxus_api.modules.incident.lifecycle import (
     IncidentLifecycleState,
     validate_lifecycle_transition,
@@ -66,6 +67,7 @@ class NewIncident:
     affected_service_ids: tuple[uuid.UUID, ...] = ()
     visibility: IncidentVisibility | None = None
     incident_type_id: uuid.UUID | None = None
+    field_values: tuple[tuple[str, Any], ...] = ()
 
 
 class IncidentService:
@@ -81,6 +83,7 @@ class IncidentService:
         self._catalog = catalog or CatalogRepository()
         self._affected_services = affected_services or AffectedServiceRepository()
         self._types = IncidentTypeRepository()
+        self._field_values = FieldValueWriter()
 
     async def create(
         self, session: AsyncSession, access: WorkspaceAccess, new_incident: NewIncident
@@ -160,6 +163,11 @@ class IncidentService:
                     added_by_user_id=access.user_id,
                 ),
             )
+        await self._field_values.set_many(
+            session, access, incident, dict(new_incident.field_values)
+        )
+        if new_incident.is_declared:
+            await self._field_values.require_complete(session, incident, target_state)
         return incident
 
     async def get(

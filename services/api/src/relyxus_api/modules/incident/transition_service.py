@@ -24,6 +24,7 @@ from relyxus_api.modules.access.role_requirements import InsufficientWorkspaceRo
 from relyxus_api.modules.access.service import WorkspaceAccess
 from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
 from relyxus_api.modules.incident.closure_service import ClosureDetails, IncidentClosureService
+from relyxus_api.modules.incident.field_value_writer import FieldValueWriter
 from relyxus_api.modules.incident.lifecycle import (
     OPEN_LIFECYCLE_STATES,
     IncidentLifecycleState,
@@ -85,6 +86,7 @@ class IncidentTransitionService:
         self._activity = activity or IncidentActivityRecorder()
         self._reviews = reviews or IncidentReviewService()
         self._closure = closure or IncidentClosureService()
+        self._field_values = FieldValueWriter()
 
     async def transition(
         self, session: AsyncSession, access: WorkspaceAccess, command: TransitionCommand
@@ -118,6 +120,8 @@ class IncidentTransitionService:
                 f"Your workspace role cannot move an incident from {current.value} to "
                 f"{target.value}."
             )
+        # MPS-8A.04: fields required at this stage must be filled first.
+        await self._field_values.require_complete(session, incident, target)
         now = datetime.now(UTC)
         await self._apply_target_rules(session, access, incident, command, current, now)
 

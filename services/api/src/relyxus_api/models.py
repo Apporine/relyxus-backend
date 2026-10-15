@@ -8,6 +8,7 @@ from relyxus_api.modules.idempotency.model import IdempotencyRecord
 from relyxus_api.modules.incident.access_grant_model import IncidentAccessGrant
 from relyxus_api.modules.incident.affected_service_model import IncidentAffectedService
 from relyxus_api.modules.incident.field_model import CustomFieldDefinition
+from relyxus_api.modules.incident.field_value_model import IncidentFieldValue
 from relyxus_api.modules.incident.follow_up_model import IncidentFollowUp
 from relyxus_api.modules.incident.handoff_model import IncidentRoleHandoff
 from relyxus_api.modules.incident.link_model import IncidentLink
@@ -31,6 +32,7 @@ __all__ = [
     "Incident",
     "IncidentAccessGrant",
     "IncidentAffectedService",
+    "IncidentFieldValue",
     "IncidentFollowUp",
     "IncidentLink",
     "IncidentReview",

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
@@ -58,6 +58,15 @@ class DeclareIncidentRequest(BaseModel):
         default_factory=list,
         max_length=50,
         description="Active services of this workspace the incident affects (MPS-8A.08).",
+    )
+    field_values: dict[str, Any] = Field(
+        default_factory=dict,
+        max_length=200,
+        description=(
+            "Custom field values by field key (MPS-8A.04). Fields required at "
+            "`investigating` must be given to declare."
+        ),
+        examples=[{"affected_region": "eu_west"}],
     )
     visibility: IncidentVisibility | None = Field(
         default=None,
@@ -239,3 +248,29 @@ class AffectedServiceView(BaseModel):
     tier: str
     added_by_user_id: uuid.UUID
     added_at: datetime
+
+
+class SetFieldValueRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    value: Any = Field(
+        description=(
+            "Shape depends on the field: text, number (number or decimal string), currency "
+            "`{amount_minor, currency}`, ISO 8601 date-time with zone, true/false, an option "
+            "value, a list of option values, a user/team/service ID, or an http(s) URL."
+        ),
+        examples=["eu_west"],
+    )
+
+
+class FieldValueView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    key: str
+    label: str
+    data_type: str
+    value: Any
+    field_version: int = Field(description="The field version the value was set under.")
+    is_field_archived: bool
+    set_by_user_id: uuid.UUID
+    set_at: datetime

@@ -1,10 +1,20 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from relyxus_api.modules.incident.timeline_model import IncidentTimelineEvent
+
+NOTE_TEXT_MAX_LENGTH = 4000
+
+
+class AddNoteRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    text: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=NOTE_TEXT_MAX_LENGTH)
+    ] = Field(examples=["Provider confirms elevated card declines in eu-west-1."])
 
 
 class TimelineEventView(BaseModel):
@@ -18,7 +28,8 @@ class TimelineEventView(BaseModel):
     )
     actor_user_id: uuid.UUID | None = Field(description="Who did it; null for system events.")
     subject_type: str = Field(
-        description="What changed: `incident` or `incident_task`.", examples=["incident"]
+        description="What changed: `incident`, `incident_task` or `incident_note`.",
+        examples=["incident"],
     )
     subject_id: uuid.UUID
     before: dict[str, Any] | None = Field(description="The changed fields before the change.")

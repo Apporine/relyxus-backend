@@ -277,9 +277,21 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 
 ---
 
+## Feature F-INCIDENT — Incident model and lifecycle (MPS Ph0 / §8A)
+
+**Scope:** Ph0 incident lifecycle state machine, workspace-scoped incident storage, and (next PRs) declare/list/transition HTTP with audit. Provisional on Q-11 (cancelled-from states, triage semantics) per ADR-0004.
+
+| # | Branch | Scope | Requirement IDs | Status |
+|---|---|---|---|---|
+| I1 | [#38](https://github.com/Apporine/relyxus-backend/pull/38) `feat/incident-lifecycle-and-table` | ADR-0004, lifecycle validator, `incidents` table + RLS (migration 0009) | MPS-8A.07, MPS-8A.22, MPS-23.05 | in review |
+| I2 | (planned) | `POST /api/v1/incidents` declare (triage → investigating) | MPS-8A.08 | planned |
+| I3 | (planned) | Lifecycle transition endpoint + audit events | MPS-8A.09–8A.16, MPS-8A.22 | planned |
+
+---
+
 ## Other features
 
-Not started. Feature breakdown (step 3) waits on the remaining blocking questions in register section E.
+Product features beyond F-INCIDENT still depend on resolving remaining register section E questions where they block contracts (Q-11 triage detail, Q-08 entitlements catalogue, etc.).
 
 - **2026-10-14 — CI and merges** — Actions only started after the workflow scope fix; required checks `lint, types, tests` and `secret scan` set on `develop` (repo made public). PRs #1–#6 squash-merged in order, each after green checks (#1 docs-only merged with admin bypass, as instructed).
 - **PR 7 — 2026-10-14** — `apporine_licensing.key_set_document`: closed, versioned trusted key-set file (`key_id`, `environment`, `algorithm`, UTC signing window, public PEM), loader returning `TrustedKeySet`, all failures as `KeySetConfigurationError`; schema `trusted-key-set.v1.schema.json`; ADR-0002 §5.1. **Covered:** LIC-6.04 (versioned key set with key IDs), DEP-23.01 (key material shipped as data, not code), TSD-23.04. **Results:** ruff, mypy strict, pytest 177 passed.

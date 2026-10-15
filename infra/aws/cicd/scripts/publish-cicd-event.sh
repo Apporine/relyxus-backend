@@ -2,7 +2,7 @@
 # Publish a structured CI/CD event to CloudWatch Logs (visible in AWS console).
 set -euo pipefail
 
-: "${AWS_REGION:=us-east-1}"
+: "${AWS_REGION:=ap-southeast-2}"
 : "${CICD_LOG_GROUP:=/relyxus/cicd/deployments}"
 
 EVENT_TYPE="${1:?usage: publish-cicd-event.sh <build|deploy> <status>}"

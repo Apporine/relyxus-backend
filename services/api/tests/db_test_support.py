@@ -22,6 +22,7 @@ ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 PROBE_ROLE = "relyxus_rls_probe"
 # Child tables first so deletes respect foreign keys.
 TENANT_TABLES = (
+    "services",
     "team_role_grants",
     "team_members",
     "teams",

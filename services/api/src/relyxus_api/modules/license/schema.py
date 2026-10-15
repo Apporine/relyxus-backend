@@ -21,3 +21,7 @@ class LicenseStatusView(BaseModel):
     entitlements: tuple[str, ...]
     evaluated_at: datetime
     has_current: bool = True
+    connected_refresh_source: str | None = Field(
+        default=None,
+        description="When connected refresh is configured: live fetch succeeded, or cache used after outage.",
+    )

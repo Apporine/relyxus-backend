@@ -1,11 +1,25 @@
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apporine_licensing.verifier import LicenseVerifier, VerifiedLicense
+from apporine_licensing.connected_refresh import (
+    ConnectedRefreshPolicy,
+    StatusCacheEntry,
+    merge_connected_state,
+)
+from apporine_licensing.errors import LicenseVerificationError
+from apporine_licensing.key_set import TrustedKeySet
+from apporine_licensing.license_state import LicenseState
+from apporine_licensing.status_snapshot import verify_status_snapshot
+from apporine_licensing.verifier import InstallationIdentity, LicenseVerifier, VerifiedLicense
+from relyxus_api.modules.license.connected_client import (
+    LicenseStatusFetchError,
+    fetch_status_snapshot_document,
+)
 from relyxus_api.modules.license.model import OrganizationLicense
 from relyxus_api.modules.license.repository import LicenseRepository
 from relyxus_api.modules.license.schema import LicenseStatusView
@@ -37,6 +51,22 @@ class LicenseDowngradeForbiddenError(ConflictError):
 @dataclass(frozen=True, slots=True)
 class LicenseRuntime:
     verifier: LicenseVerifier
+    key_set: TrustedKeySet
+    installation: InstallationIdentity
+
+
+@dataclass
+class LicenseStatusCache:
+    entry: StatusCacheEntry | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectedRefreshConfig:
+    status_url: str
+    fetch_timeout_seconds: float
+    policy: ConnectedRefreshPolicy
+    cache: LicenseStatusCache
+    fetch: Callable[[str, float], bytes] = fetch_status_snapshot_document
 
 
 class LicenseService:
@@ -56,13 +86,26 @@ class LicenseService:
         organization_id: uuid.UUID,
         runtime: LicenseRuntime | None,
         now: datetime | None = None,
+        connected: ConnectedRefreshConfig | None = None,
     ) -> LicenseStatusView:
         record = await self._repository.find_current(session, organization_id)
         if record is None:
             raise NoLicenseInstalledError("No licence is installed for this organisation.")
         evaluated_at = now or datetime.now(UTC)
         verified = self._verify_artifact(runtime, record.artifact.encode(), evaluated_at)
-        return self._to_status_view(record, verified, evaluated_at)
+        effective_state = verified.state
+        refresh_source: str | None = None
+        if connected is not None and runtime is not None:
+            effective_state, refresh_source = self._apply_connected_refresh(
+                runtime, verified, verified.state, evaluated_at, connected
+            )
+        return self._to_status_view(
+            record,
+            verified,
+            evaluated_at,
+            state=effective_state,
+            connected_refresh_source=refresh_source,
+        )
 
     async def install(
         self,
@@ -106,17 +149,61 @@ class LicenseService:
 
     @staticmethod
     def _to_status_view(
-        record: OrganizationLicense, verified: VerifiedLicense, evaluated_at: datetime
+        record: OrganizationLicense,
+        verified: VerifiedLicense,
+        evaluated_at: datetime,
+        *,
+        state: LicenseState | None = None,
+        connected_refresh_source: str | None = None,
     ) -> LicenseStatusView:
+        resolved_state = state if state is not None else verified.state
         return LicenseStatusView(
             license_id=record.license_id,
             revision=record.revision,
-            state=verified.state.value,
+            state=resolved_state.value,
             expires_at=verified.payload.expires_at,
             grace_ends_at=verified.grace_ends_at,
             entitlements=tuple(sorted(verified.payload.entitlements)),
             evaluated_at=evaluated_at,
+            connected_refresh_source=connected_refresh_source,
         )
+
+    @staticmethod
+    def _apply_connected_refresh(
+        runtime: LicenseRuntime,
+        verified: VerifiedLicense,
+        offline_state: LicenseState,
+        evaluated_at: datetime,
+        connected: ConnectedRefreshConfig,
+    ) -> tuple[LicenseState, str | None]:
+        cache_entry = connected.cache.entry
+        refresh_source: str | None = None
+        try:
+            document = connected.fetch(connected.status_url, connected.fetch_timeout_seconds)
+            snapshot = verify_status_snapshot(
+                document,
+                runtime.key_set,
+                runtime.installation.environment,
+                runtime.installation,
+            )
+            cache_entry = StatusCacheEntry(snapshot=snapshot, retrieved_at=evaluated_at)
+            connected.cache.entry = cache_entry
+            refresh_source = "live"
+        except (LicenseVerificationError, LicenseStatusFetchError):
+            if cache_entry is not None:
+                refresh_source = "cache"
+
+        merged = merge_connected_state(
+            offline_state,
+            local_license_id=str(verified.payload.license_id),
+            local_revision=verified.payload.revision,
+            cache=cache_entry,
+            now=evaluated_at,
+            policy=connected.policy,
+        )
+        if refresh_source is None and merged is not offline_state:
+            refresh_source = "cache"
+        return merged, refresh_source
 
     def _verify_artifact(
         self,

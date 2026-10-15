@@ -1,0 +1,35 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudWatchCicdTelemetry",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:*:*:log-group:/relyxus/cicd/*",
+        "arn:aws:logs:*:*:log-group:/relyxus/cicd/*:log-stream:*"
+      ]
+    },
+    {
+      "Sid": "CodeBuildStartWhenEnabled",
+      "Effect": "Allow",
+      "Action": [
+        "codebuild:StartBuild",
+        "codebuild:BatchGetBuilds",
+        "codebuild:BatchGetProjects"
+      ],
+      "Resource": "arn:aws:codebuild:*:*:project/relyxus-trial-*"
+    },
+    {
+      "Sid": "CicdSourceBucket",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject"],
+      "Resource": "arn:aws:s3:::relyxus-cicd-source-*/*"
+    }
+  ]
+}

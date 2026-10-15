@@ -56,7 +56,7 @@ def client(database_url: str) -> TestClient:
     return TestClient(app)
 
 
-def _headers(workspace: uuid.UUID = WORKSPACE_B1, **extra: str) -> dict[str, str]:
+def _headers(*, workspace: uuid.UUID = WORKSPACE_B1, **extra: str) -> dict[str, str]:
     return {
         "Authorization": "Bearer sub-amira",
         WORKSPACE_HEADER: str(workspace),
@@ -173,7 +173,7 @@ def test_timeline_follows_incident_visibility(client: TestClient, database_url: 
     ).json()["data"]["id"]
 
     other_workspace = client.get(
-        f"{INCIDENTS}/{incident_id}/timeline", headers=_headers(WORKSPACE_A1)
+        f"{INCIDENTS}/{incident_id}/timeline", headers=_headers(workspace=WORKSPACE_A1)
     )
     unknown = _timeline(client, str(uuid.uuid4()))
 
@@ -215,3 +215,91 @@ def test_invalid_cursor_is_rejected(client: TestClient) -> None:
     response = _timeline(client, incident_id, f"?cursor={task_cursor}")
 
     assert (response.status_code, response.json()["code"]) == (422, "INVALID_CURSOR")
+
+
+def _add_note(
+    client: TestClient, incident_id: str, text: str, idempotency_key: str | None = None
+) -> Any:
+    headers = _headers()
+    if idempotency_key is not None:
+        headers["Idempotency-Key"] = idempotency_key
+    return client.post(
+        f"{INCIDENTS}/{incident_id}/timeline/notes", headers=headers, json={"text": text}
+    )
+
+
+def test_notes_are_added_in_order_and_audited(client: TestClient, database_url: str) -> None:
+    incident_id = client.post(
+        INCIDENTS, headers=_headers(), json={"title": "Notes", "severity": "sev2"}
+    ).json()["data"]["id"]
+
+    created = _add_note(client, incident_id, "  Provider confirms elevated declines.  ")
+    client.patch(f"{INCIDENTS}/{incident_id}", headers=_headers(), json={"title": "Declines"})
+    _add_note(client, incident_id, "Failover started.")
+
+    note = created.json()["data"]
+    assert created.status_code == 201
+    assert (note["kind"], note["subject_type"], note["actor_user_id"]) == (
+        "incident.note_added",
+        "incident_note",
+        str(AMIRA),
+    )
+    assert note["after"] == {"text": "Provider confirms elevated declines."}
+    events = _timeline(client, incident_id).json()["data"]
+    assert [event["kind"] for event in events] == [
+        "incident.declared",
+        "incident.note_added",
+        "incident.updated",
+        "incident.note_added",
+    ]
+
+    async def audited(session: AsyncSession) -> int:
+        rows = await session.scalars(
+            select(AuditEvent.id).where(
+                AuditEvent.action == "incident.note_added",
+                AuditEvent.target_id == note["subject_id"],
+            )
+        )
+        return len(rows.all())
+
+    assert run_as_superuser(database_url, audited) == 1
+
+
+def test_note_retry_with_same_key_adds_one_note(client: TestClient) -> None:
+    incident_id = client.post(
+        INCIDENTS, headers=_headers(), json={"title": "Retry", "severity": "sev3"}
+    ).json()["data"]["id"]
+    key = f"idem-{uuid.uuid4()}"
+
+    first = _add_note(client, incident_id, "Once", key)
+    second = _add_note(client, incident_id, "Once", key)
+
+    assert second.json() == first.json()
+    kinds = [event["kind"] for event in _timeline(client, incident_id).json()["data"]]
+    assert kinds.count("incident.note_added") == 1
+
+
+@pytest.mark.parametrize("text", ["", "   ", "x" * 4001])
+def test_note_text_is_validated(client: TestClient, text: str) -> None:
+    incident_id = client.post(
+        INCIDENTS, headers=_headers(), json={"title": "Validation", "severity": "sev4"}
+    ).json()["data"]["id"]
+
+    assert _add_note(client, incident_id, text).status_code == 422
+
+
+def test_notes_follow_incident_visibility_and_state(client: TestClient) -> None:
+    incident_id = client.post(
+        INCIDENTS, headers=_headers(), json={"title": "Frozen", "severity": "sev4"}
+    ).json()["data"]["id"]
+    client.post(
+        f"{INCIDENTS}/{incident_id}/transitions",
+        headers=_headers(),
+        json={"target_state": "cancelled", "reason": "False alarm"},
+    )
+
+    frozen = _add_note(client, incident_id, "Too late")
+    unknown = _add_note(client, str(uuid.uuid4()), "Nowhere")
+
+    assert (frozen.status_code, frozen.json()["code"]) == (409, "INCIDENT_NOT_EDITABLE")
+    assert (unknown.status_code, unknown.json()["code"]) == (404, "INCIDENT_NOT_FOUND")

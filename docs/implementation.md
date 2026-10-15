@@ -292,6 +292,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I7 | `feat/incident-roles` | Incident role assignments (IC, comms lead, scribe): GET/PUT/DELETE, member check, audited (migration 0014) | MPS-11.04, MPS-14.06, MPS-20.12 (roles) | in review |
 | I8 | `feat/incident-tasks` | Live incident tasks: create, list, update (status, owner, due, priority), audited, frozen with incident (migration 0015) | MPS-11.14–11.22, MPS-20.32 | in review |
 | I9 | `feat/incident-timeline` | Append-only incident timeline written with every audited incident change; `GET /api/v1/incidents/{id}/timeline` (migration 0016) | MPS-5.20 (timeline part), MPS-8A.33, MPS-11.20, MPS-8A.14 | in review |
+| I10 | `feat/incident-timeline-notes` | `POST /api/v1/incidents/{id}/timeline/notes`: immutable human notes on the timeline, audited, idempotent | MPS-11.20, MPS-11.04 (scribe's record), MPS-5.20 | in review |
 
 ---
 
@@ -402,3 +403,11 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** existing incidents start with an empty timeline (their history stays in the audit chain); manual notes (I10); merged-timeline view with source labels (MPS-8A.16/8A.28); system actors (regression detector, automations).
 
   **Results:** ruff and mypy strict pass; pytest 421 passed against local PostgreSQL.
+
+- **I10 — 2026-10-15** — Timeline notes.
+  - **`POST /api/v1/incidents/{id}/timeline/notes`** (`Idempotency-Key` required): adds an `incident.note_added` event (subject type `incident_note`) to the timeline and the audit chain in one transaction. Text is trimmed, 1–4000 characters.
+  - Notes are immutable like every timeline event; a correction is a new note. Refused with 409 `INCIDENT_NOT_EDITABLE` once the incident is closed, cancelled or merged; allowed while resolved (post-incident context).
+  - Allowed roles: owner, admin, incident commander, responder (the incident-writing roles).
+  - **Not covered yet:** letting the incident's assigned scribe write notes when their workspace role is viewer; attachments and evidence links on notes.
+
+  **Results:** ruff and mypy strict pass; pytest 427 passed against local PostgreSQL.

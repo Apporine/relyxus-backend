@@ -42,7 +42,7 @@ class IncidentActivityRecorder:
 
     async def record(
         self, session: AsyncSession, access: WorkspaceAccess, activity: IncidentActivity
-    ) -> None:
+    ) -> IncidentTimelineEvent:
         await self._audit.append(
             session,
             NewAuditEvent(
@@ -60,7 +60,7 @@ class IncidentActivityRecorder:
                 correlation_id=get_correlation_id(),
             ),
         )
-        await self._timeline.append(
+        return await self._timeline.append(
             session,
             IncidentTimelineEvent(
                 id=new_uuid7(),

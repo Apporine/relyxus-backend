@@ -296,6 +296,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I11 | `feat/incident-acknowledge` | Impact-started, detected, acknowledged timestamps (migration 0017); declare/PATCH reported times with plausibility rules; `POST /api/v1/incidents/{id}/acknowledge` | MPS-8A.20, MPS-15.02 (Acknowledge), MPS-20.12 | in review |
 | I12 | `feat/incident-links` | Incident links (duplicate of, caused by, related to, recurrence of): add/list/remove, one per type per pair, on both timelines (migration 0018) | MPS-8A.31, MPS-20.31 | in review |
 | I13 | `feat/incident-role-handoff` | Role handoff: request (package snapshot), accept by incoming person (role moves, timeline records both), cancel/decline; one pending per role (migration 0019) | MPS-11.23 (partial), MPS-11.24 (partial), MPS-20.33 | in review |
+| I14 | `feat/incident-follow-ups` | Post-incident follow-ups: create/list/update on resolved or closed incidents, mandatory flag (SEV1/SEV2 default), audited, on timeline (migration 0020) | MPS-26.02, MPS-13.17 (data), MPS-20.32 (conversion target) | in review |
 
 ---
 
@@ -447,3 +448,24 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** pending approvals, active clocks, risks and unknowns, and the next update time in the package, all listed in `unavailable_sections`. Acknowledging or deferring approvals and clocks due within an hour (MPS-11.24). Neither approvals nor clocks exist yet.
 
   **Results:** ruff and mypy strict pass; pytest 452 passed against local PostgreSQL.
+
+- **I14 — 2026-10-15** — Follow-ups.
+  - **Table `incident_follow_ups`** (migration 0020):
+    - title, owner, due date, `is_mandatory`, status (open, in progress, done, cancelled), source (`manual` or `live_task`, with a unique `source_task_id`).
+    - CHECKs as for tasks; forced RLS.
+  - **Endpoints:**
+    - `POST /api/v1/incidents/{id}/follow-ups` (`Idempotency-Key`)
+    - `GET …/follow-ups` (cursor-paginated)
+    - `PATCH …/follow-ups/{id}` (optional `If-Match`; null clears owner and due date)
+  - **Rules:**
+    - Follow-ups are post-incident work, so they are only available once the incident is resolved or closed (409 `INCIDENT_FOLLOW_UPS_NOT_AVAILABLE`). Closed incidents keep tracking them.
+    - Owners must be members. Cancelling needs a reason; done and cancelled are final.
+    - `is_mandatory` defaults to true for SEV1/SEV2 (register **Q-37**, provisional).
+  - Audited, and on the timeline as `incident.follow_up_created` / `incident.follow_up_updated`.
+  - **Contract version 0.18.0.**
+  - **Not covered yet:**
+    - Converting live tasks at resolution (I15).
+    - Weekly overdue reminders (MPS-13.07).
+    - Jira/ServiceNow mirroring (MPS-16.10).
+
+  **Results:** ruff and mypy strict pass; pytest 461 passed against local PostgreSQL.

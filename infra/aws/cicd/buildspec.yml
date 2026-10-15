@@ -1,5 +1,5 @@
 # CodeBuild buildspec — builds the API image and pushes to ECR (trial stack).
-# Source: GitHub Actions uploads relyxus-deploy.zip to S3, then starts this project.
+# Source: GitHub Actions uploads relyxus-<sha>.zip to S3, then starts this project.
 version: 0.2
 
 phases:
@@ -8,7 +8,8 @@ phases:
       - echo "Logging in to ECR..."
       - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
       - IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPOSITORY"
-      - IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-local}"
+      # GitHub Actions passes the commit SHA; an S3 source has no git revision of its own.
+      - IMAGE_TAG="${IMAGE_TAG:-local}"
       - export IMAGE_URI IMAGE_TAG
   build:
     commands:

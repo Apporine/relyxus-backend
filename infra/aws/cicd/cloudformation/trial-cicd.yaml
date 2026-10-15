@@ -1,7 +1,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Trial CI/CD for relyxus-backend — ECR, CodeBuild, S3 source bucket, GitHub OIDC role.
-  Deploy from an account where org SCP allows codebuild, ecr, cloudformation, and s3.
+  Deploy from an account where org SCP allows codebuild, ecr, cloudformation, s3 and
+  iam OIDC providers. Account 925234975399 denies the OIDC provider, so it is set up with
+  scripts/setup-trial-codebuild.ps1 instead (same resources, minus OIDC).
 
 Parameters:
   GitHubOrg:
@@ -28,6 +30,11 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-build-sources
+            Status: Enabled
+            ExpirationInDays: 7
 
   ApiRepository:
     Type: AWS::ECR::Repository
@@ -35,7 +42,13 @@ Resources:
       RepositoryName: relyxus/api
       ImageScanningConfiguration:
         ScanOnPush: true
+      # `latest` is re-pointed on every build; commit-SHA tags are never reused.
       ImageTagMutability: MUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: >-
+          {"rules":[{"rulePriority":1,"description":"Keep the 10 most recent images",
+          "selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":10},
+          "action":{"type":"expire"}}]}
 
   CicdLogGroup:
     Type: AWS::Logs::LogGroup
@@ -104,7 +117,8 @@ Resources:
       Environment:
         Type: LINUX_CONTAINER
         Image: aws/codebuild/standard:7.0
-        ComputeType: BUILD_GENERAL1_MEDIUM
+        # SMALL is the free-tier size (100 build minutes/month).
+        ComputeType: BUILD_GENERAL1_SMALL
         PrivilegedMode: true
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION

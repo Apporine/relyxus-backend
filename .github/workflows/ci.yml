@@ -135,7 +135,7 @@ jobs:
             --project-name relyxus-trial-build \
             --source-type-override S3 \
             --source-location-override "${SOURCE_BUCKET}/${KEY}" \
-            --source-version "${GITHUB_SHA}" \
+            --environment-variables-override "name=IMAGE_TAG,value=${GITHUB_SHA},type=PLAINTEXT" \
             --query 'build.id' --output text)"
           echo "CodeBuild build id: ${BUILD_ID}"
           for _ in $(seq 1 60); do
@@ -154,6 +154,13 @@ jobs:
             fi
             sleep 15
           done
+          if [[ "$STATUS" != "SUCCEEDED" ]]; then
+            echo "CodeBuild did not finish within 15 minutes (status=${STATUS})"
+            bash infra/aws/cicd/scripts/publish-cicd-event.sh build failed
+            exit 1
+          fi
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          echo "Image: ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/relyxus/api:${GITHUB_SHA}"
 
       - name: Sync and restart the trial host
         env:

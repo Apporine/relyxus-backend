@@ -283,8 +283,8 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
-| I1 | [#38](https://github.com/Apporine/relyxus-backend/pull/38) `feat/incident-lifecycle-and-table` | ADR-0004, lifecycle validator, `incidents` table + RLS (migration 0009) | MPS-8A.07, MPS-8A.22, MPS-23.05 | in review |
-| I2 | (planned) | `POST /api/v1/incidents` declare (triage → investigating) | MPS-8A.08 | planned |
+| I1 | [#38](https://github.com/Apporine/relyxus-backend/pull/38) `feat/incident-lifecycle-and-table` | ADR-0004, lifecycle validator, `incidents` table + RLS (migration 0009) | MPS-8A.07, MPS-8A.22, MPS-23.05 | merged |
+| I2 | `feat/incident-declare` | `POST /api/v1/incidents` declare (triage → investigating) | MPS-8A.08 | planned |
 | I3 | (planned) | Lifecycle transition endpoint + audit events | MPS-8A.09–8A.16, MPS-8A.22 | planned |
 
 ---

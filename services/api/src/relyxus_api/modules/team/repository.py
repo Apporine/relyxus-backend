@@ -5,7 +5,7 @@ import uuid
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from relyxus_api.modules.team.model import Team, TeamMember
+from relyxus_api.modules.team.model import Team, TeamMember, TeamRoleGrant
 
 
 class TeamRepository:
@@ -72,3 +72,33 @@ class TeamRepository:
 
     async def remove_member(self, session: AsyncSession, member_id: uuid.UUID) -> None:
         await session.execute(delete(TeamMember).where(TeamMember.id == member_id))
+
+    async def list_role_grants(
+        self, session: AsyncSession, team_id: uuid.UUID
+    ) -> list[TeamRoleGrant]:
+        """At most one row per workspace role, so the list is naturally bounded."""
+        grants = await session.scalars(
+            select(TeamRoleGrant)
+            .where(TeamRoleGrant.team_id == team_id)
+            .order_by(TeamRoleGrant.role)
+        )
+        return list(grants)
+
+    async def find_role_grant(
+        self, session: AsyncSession, team_id: uuid.UUID, role: str
+    ) -> TeamRoleGrant | None:
+        grant: TeamRoleGrant | None = await session.scalar(
+            select(TeamRoleGrant).where(
+                TeamRoleGrant.team_id == team_id, TeamRoleGrant.role == role
+            )
+        )
+        return grant
+
+    async def save_role_grant(self, session: AsyncSession, grant: TeamRoleGrant) -> TeamRoleGrant:
+        session.add(grant)
+        await session.flush()
+        await session.refresh(grant)
+        return grant
+
+    async def remove_role_grant(self, session: AsyncSession, grant_id: uuid.UUID) -> None:
+        await session.execute(delete(TeamRoleGrant).where(TeamRoleGrant.id == grant_id))

@@ -6,8 +6,12 @@ changes (MPS-14A configuration with stable IDs); name and description can. Membe
 already be members of the workspace. Every change is written to the workspace audit chain
 in the same transaction.
 
-Not yet: team role grants (Q-18, next change), on-call schedules and escalation policies
-(MPS-20.05, MPS-11.07), archiving teams.
+Team role grants (Q-18): a team can hold workspace roles that its members inherit; only
+workspace owners grant or revoke them (register Q-40). Members' effective roles are
+resolved in the access service.
+
+Not yet: on-call schedules and escalation policies (MPS-20.05, MPS-11.07), archiving
+teams.
 """
 
 import uuid
@@ -16,11 +20,12 @@ from typing import ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from relyxus_api.modules.access.model import WorkspaceRole
 from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessService
 from relyxus_api.modules.audit.model import ActorType, AuditOutcome
 from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
-from relyxus_api.modules.team.model import Team, TeamMember
+from relyxus_api.modules.team.model import Team, TeamMember, TeamRoleGrant
 from relyxus_api.modules.team.repository import TeamRepository
 from relyxus_api.shared.errors.app_errors import ConflictError, NotFoundError, ValidationFailedError
 from relyxus_api.shared.http.etag import format_weak_etag
@@ -35,6 +40,8 @@ TEAM_CREATED_ACTION = "team.created"
 TEAM_UPDATED_ACTION = "team.updated"
 TEAM_MEMBER_ADDED_ACTION = "team.member_added"
 TEAM_MEMBER_REMOVED_ACTION = "team.member_removed"
+TEAM_ROLE_GRANTED_ACTION = "team.role_granted"
+TEAM_ROLE_REVOKED_ACTION = "team.role_revoked"
 
 
 class TeamNotFoundError(NotFoundError):
@@ -55,6 +62,10 @@ class TeamMemberNotWorkspaceMemberError(ValidationFailedError):
 
 class NoTeamChangesError(ValidationFailedError):
     code: ClassVar[str] = "TEAM_NO_CHANGES"
+
+
+class TeamRoleGrantNotFoundError(NotFoundError):
+    code: ClassVar[str] = "TEAM_ROLE_GRANT_NOT_FOUND"
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,6 +217,56 @@ class TeamService:
         await self._repository.remove_member(session, member.id)
         await self._record(
             session, access, team.id, TEAM_MEMBER_REMOVED_ACTION, {"user_id": str(user_id)}, None
+        )
+
+    async def list_role_grants(
+        self, session: AsyncSession, access: WorkspaceAccess, team_id: uuid.UUID
+    ) -> tuple[TeamRoleGrant, ...]:
+        team = await self.get(session, access, team_id)
+        return tuple(await self._repository.list_role_grants(session, team.id))
+
+    async def grant_role(
+        self,
+        session: AsyncSession,
+        access: WorkspaceAccess,
+        team_id: uuid.UUID,
+        role: WorkspaceRole,
+    ) -> TeamRoleGrant:
+        """Idempotent: granting a role the team already holds returns the existing grant."""
+        team = await self._lock(session, access, team_id)
+        existing = await self._repository.find_role_grant(session, team.id, role.value)
+        if existing is not None:
+            return existing
+        grant = await self._repository.save_role_grant(
+            session,
+            TeamRoleGrant(
+                id=new_uuid7(),
+                organization_id=access.organization_id,
+                workspace_id=access.workspace_id,
+                team_id=team.id,
+                role=role.value,
+                granted_by_user_id=access.user_id,
+            ),
+        )
+        await self._record(
+            session, access, team.id, TEAM_ROLE_GRANTED_ACTION, None, {"role": role.value}
+        )
+        return grant
+
+    async def revoke_role(
+        self,
+        session: AsyncSession,
+        access: WorkspaceAccess,
+        team_id: uuid.UUID,
+        role: WorkspaceRole,
+    ) -> None:
+        team = await self._lock(session, access, team_id)
+        grant = await self._repository.find_role_grant(session, team.id, role.value)
+        if grant is None:
+            raise TeamRoleGrantNotFoundError(f"The team does not hold the {role.value} role.")
+        await self._repository.remove_role_grant(session, grant.id)
+        await self._record(
+            session, access, team.id, TEAM_ROLE_REVOKED_ACTION, {"role": role.value}, None
         )
 
     async def _lock(

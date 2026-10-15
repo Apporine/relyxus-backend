@@ -6,7 +6,7 @@ identically, so callers cannot probe which workspace IDs exist.
 """
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,11 +66,14 @@ class WorkspaceAccessService:
         if not grants:
             raise WorkspaceAccessDeniedError("You do not have access to this workspace.")
 
+        # Q-18: direct grants plus the user's teams' grants. Team roles only reach people who
+        # are direct members, so removing a membership removes every role in the workspace.
+        team_roles = await self._repository.list_team_roles(session, user.id, workspace_id)
         access = WorkspaceAccess(
             user_id=user.id,
             organization_id=grants[0].organization_id,
             workspace_id=workspace_id,
-            roles=frozenset(WorkspaceRole(grant.role) for grant in grants),
+            roles=frozenset(WorkspaceRole(role) for role in {g.role for g in grants} | team_roles),
         )
         await apply_tenant_context(
             session,
@@ -110,4 +113,5 @@ class WorkspaceAccessService:
             # Access was just resolved in this transaction, so this means a concurrent
             # revocation; deny rather than report a workspace the caller can no longer use.
             raise WorkspaceAccessDeniedError("You do not have access to this workspace.")
-        return listing
+        # Report the effective roles, team grants included (Q-18).
+        return replace(listing, roles=tuple(sorted(role.value for role in access.roles)))

@@ -8,10 +8,10 @@ unit (context.md §9).
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends, Request
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -27,11 +27,21 @@ logger = logging.getLogger(__name__)
 
 def create_database_engine(settings: Settings) -> AsyncEngine:
     """Lazy: no connection is opened until first use, so startup never blocks on the DB."""
-    return create_async_engine(
+    engine = create_async_engine(
         settings.database_url.get_secret_value(),
         pool_pre_ping=True,
         hide_parameters=True,
     )
+    event.listen(engine.sync_engine, "connect", _use_utc)
+    return engine
+
+
+def _use_utc(dbapi_connection: Any, _connection_record: Any) -> None:
+    """Timestamps leave the database in UTC whatever the server's default time zone
+    (ADR-0003: API timestamps are UTC). PgBouncer tracks TimeZone per client."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("SET TIME ZONE 'UTC'")
+    cursor.close()
 
 
 def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

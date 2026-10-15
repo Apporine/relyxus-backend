@@ -131,6 +131,7 @@ class IncidentTaskService:
         access: WorkspaceAccess,
         incident_id: uuid.UUID,
         page_request: PageRequest,
+        statuses: frozenset[TaskStatus] = frozenset(),
     ) -> Page[IncidentTask]:
         incident = await self._incidents.find_in_workspace(
             session, access.workspace_id, incident_id
@@ -138,7 +139,11 @@ class IncidentTaskService:
         if incident is None:
             raise IncidentNotFoundError("No incident with this ID is visible to you.")
         fetched = await self._tasks.list_for_incident(
-            session, incident_id, _decode_cursor(page_request), page_request.limit + 1
+            session,
+            incident_id,
+            _decode_cursor(page_request),
+            page_request.limit + 1,
+            statuses={status.value for status in statuses},
         )
         return build_page(fetched, page_request, lambda task: (str(task.id),))
 

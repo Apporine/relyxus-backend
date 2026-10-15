@@ -327,6 +327,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | V1 | `feat/configuration-versions` | Append-only configuration versions (who, when, source, snapshot, difference) for teams and services; read API (migration 0029) | MPS-14A.07, MPS-20.29, MPS-8A.06 (mechanism) | in review |
 | V2 | `feat/incident-types` | Incident types: create/list/get/update/archive, versioned via configuration versions; install the nine MPS-8A.02 defaults (migration 0030) | MPS-8A.01 (partial), MPS-8A.02, MPS-8A.06, MPS-20.26 (partial) | in review |
 | V3 | `feat/incident-declare-type` | Declare under an incident type: type required once the workspace has types, defaults severity/visibility, allowed severities enforced (also on later changes, per declared type version), list filter by type (migration 0031) | MPS-8A.08 (type), MPS-8A.06 (incident keeps its version), MPS-20.12 | in review |
+| V4 | `feat/custom-fields` | Custom-field library: 11 data types, choice options, display conditions (type, severity), required-at stage, archive keeps values, versioned (migration 0032) | MPS-8A.03, MPS-8A.04 (definition), MPS-8A.05, MPS-8A.06, MPS-20.27 | in review |
 
 ---
 
@@ -721,3 +722,28 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** changing an incident's type; type-driven required fields (V4/V5); SEV1 automations (MPS-8A.19).
 
   **Results:** ruff and mypy strict pass; pytest 551 passed against local PostgreSQL.
+
+- **V4 — 2026-10-15** — Custom-field library.
+  - **Table `custom_field_definitions`** (migration 0032):
+    - Key unique per workspace; `data_type` is one of text, number, currency, date_time, yes_no, single_choice, multiple_choice, user, team, service, url. Vendor waits for a vendor catalogue.
+    - `options` (JSON), `display_condition` (`incident_type_ids`, `severities`), `required_at_stage` (investigating to closed), `version`, `archived_at`.
+    - Forced RLS.
+  - **Endpoints:**
+    - `POST /api/v1/custom-fields` (`Idempotency-Key`)
+    - `GET /custom-fields` (`include_archived`), `GET /custom-fields/{id}`
+    - `PATCH /custom-fields/{id}` (`If-Match`; archive and restore)
+    - Owners and admins change fields; everyone reads them.
+  - **Rules:**
+    - Key and data type never change.
+    - Choice fields need ≥ 1 option with unique values; other types take none.
+    - Conditions may only name this workspace's types.
+    - At most 200 active fields.
+    - Archiving is the delete; values stay (MPS-8A.05).
+    - Every change bumps `version`, with a configuration version and an audit entry (MPS-8A.06).
+  - **Contract version 0.31.0.**
+  - **Found while testing (not fixed here):** 66 of 69 CHECK constraint names have a doubled `ck_<table>_` prefix. Migrations pass full names and Alembic applies the naming convention again, back to migration 0001. Behaviour is unaffected; it will get a separate rename PR.
+  - **Not covered yet:**
+    - Values on incidents and enforcement of required-at stages (V5).
+    - Vendor fields.
+
+  **Results:** ruff and mypy strict pass; pytest 562 passed against local PostgreSQL.

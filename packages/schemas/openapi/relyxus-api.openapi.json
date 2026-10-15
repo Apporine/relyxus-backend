@@ -351,6 +351,31 @@
         "title": "ChangeVisibilityRequest",
         "type": "object"
       },
+      "ConditionModel": {
+        "additionalProperties": false,
+        "description": "Empty lists mean \"any\"; when both are set, both must match.",
+        "properties": {
+          "incident_type_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 50,
+            "title": "Incident Type Ids",
+            "type": "array"
+          },
+          "severities": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentSeverity"
+            },
+            "maxItems": 4,
+            "title": "Severities",
+            "type": "array"
+          }
+        },
+        "title": "ConditionModel",
+        "type": "object"
+      },
       "ConfigurationObjectType": {
         "enum": [
           "team",
@@ -520,6 +545,81 @@
           "reason"
         ],
         "title": "CreateAccessGrantRequest",
+        "type": "object"
+      },
+      "CreateCustomFieldRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "data_type": {
+            "$ref": "#/components/schemas/FieldDataType",
+            "description": "Fixed once created.",
+            "examples": [
+              "single_choice"
+            ]
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "display_condition": {
+            "$ref": "#/components/schemas/ConditionModel"
+          },
+          "key": {
+            "description": "Stable identifier; lowercase, digits, underscores.",
+            "examples": [
+              "root_region"
+            ],
+            "pattern": "^[a-z][a-z0-9_]{1,62}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "examples": [
+              "Affected region"
+            ],
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "description": "Choice fields only.",
+            "items": {
+              "$ref": "#/components/schemas/OptionModel"
+            },
+            "maxItems": 100,
+            "title": "Options",
+            "type": "array"
+          },
+          "required_at_stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentLifecycleState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Must be filled before the incident reaches this stage (MPS-8A.04).",
+            "examples": [
+              "resolved"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "data_type"
+        ],
+        "title": "CreateCustomFieldRequest",
         "type": "object"
       },
       "CreateFollowUpRequest": {
@@ -933,6 +1033,102 @@
         "title": "CurrentIdentity",
         "type": "object"
       },
+      "CustomFieldView": {
+        "properties": {
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data_type": {
+            "$ref": "#/components/schemas/FieldDataType"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "display_condition": {
+            "additionalProperties": true,
+            "title": "Display Condition",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "options": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "required_at_stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentLifecycleState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "label",
+          "description",
+          "data_type",
+          "options",
+          "display_condition",
+          "required_at_stage",
+          "version",
+          "archived_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CustomFieldView",
+        "type": "object"
+      },
       "DeclareIncidentRequest": {
         "additionalProperties": false,
         "description": "Declare an incident, or save it as a triage draft (MPS-15.04 \"Declare / Save draft\").",
@@ -1065,6 +1261,24 @@
         ],
         "title": "DependencyCheck",
         "type": "object"
+      },
+      "FieldDataType": {
+        "description": "MPS-8A.03 library; `vendor` arrives with the vendor catalogue (MPS-20.09).",
+        "enum": [
+          "text",
+          "number",
+          "currency",
+          "date_time",
+          "yes_no",
+          "single_choice",
+          "multiple_choice",
+          "user",
+          "team",
+          "service",
+          "url"
+        ],
+        "title": "FieldDataType",
+        "type": "string"
       },
       "FieldProblem": {
         "properties": {
@@ -2071,6 +2285,32 @@
         "title": "ListEnvelope[ConfigurationVersionView]",
         "type": "object"
       },
+      "ListEnvelope_CustomFieldView_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CustomFieldView"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListEnvelope[CustomFieldView]",
+        "type": "object"
+      },
       "ListEnvelope_FollowUpView_": {
         "properties": {
           "data": {
@@ -2402,6 +2642,34 @@
           "status"
         ],
         "title": "LivenessReport",
+        "type": "object"
+      },
+      "OptionModel": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "examples": [
+              "EU West"
+            ],
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "examples": [
+              "eu_west"
+            ],
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,62}$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "OptionModel",
         "type": "object"
       },
       "PolicyEngineStatus": {
@@ -3010,6 +3278,24 @@
           "data"
         ],
         "title": "SuccessEnvelope[CurrentIdentity]",
+        "type": "object"
+      },
+      "SuccessEnvelope_CustomFieldView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CustomFieldView"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[CustomFieldView]",
         "type": "object"
       },
       "SuccessEnvelope_FollowUpView_": {
@@ -3957,6 +4243,86 @@
         "title": "TransitionReviewRequest",
         "type": "object"
       },
+      "UpdateCustomFieldRequest": {
+        "additionalProperties": false,
+        "description": "Partial update; key and data type never change. Each change is a new version.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "display_condition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConditionModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Archiving is deleting: existing values stay (MPS-8A.05).",
+            "title": "Is Archived"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OptionModel"
+                },
+                "maxItems": 100,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "required_at_stage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentLifecycleState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "UpdateCustomFieldRequest",
+        "type": "object"
+      },
       "UpdateFollowUpRequest": {
         "additionalProperties": false,
         "description": "Partial update. Send `owner_user_id` or `due_at` as null to clear them.",
@@ -4576,7 +4942,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.30.0"
+    "version": "0.31.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5120,6 +5486,442 @@
         "summary": "Get one configuration version",
         "tags": [
           "configuration"
+        ]
+      }
+    },
+    "/api/v1/custom-fields": {
+      "get": {
+        "description": "Oldest first; archived fields only with `include_archived=true`.",
+        "operationId": "list_custom_fields_api_v1_custom_fields_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Opaque cursor from `meta.next_cursor`",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from `meta.next_cursor`",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Items per page (1-100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page (1-100)",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_CustomFieldView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List custom fields",
+        "tags": [
+          "custom-fields"
+        ]
+      },
+      "post": {
+        "description": "Adds a field to the workspace's library (MPS-8A.03): text, number, currency, date-time, yes/no, single or multiple choice, user, team, service or URL. Optional display condition by incident type and severity, and a stage it is required at (MPS-8A.04). Version 1 is recorded. Owners and admins. Requires `Idempotency-Key`.",
+        "operationId": "create_custom_field_api_v1_custom_fields_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomFieldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_CustomFieldView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Define a custom incident field",
+        "tags": [
+          "custom-fields"
+        ]
+      }
+    },
+    "/api/v1/custom-fields/{field_id}": {
+      "get": {
+        "description": "Earlier versions are under `/configuration/custom_field/{id}/versions`.",
+        "operationId": "get_custom_field_api_v1_custom_fields__field_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Field Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_CustomFieldView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get a custom field",
+        "tags": [
+          "custom-fields"
+        ]
+      },
+      "patch": {
+        "description": "Each change creates a new field version (MPS-8A.06). Key and data type never change. Archiving deletes the field from forms; existing values stay (MPS-8A.05). Owners and admins. Optional `If-Match`.",
+        "operationId": "update_custom_field_api_v1_custom_fields__field_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "field_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Field Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomFieldRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_CustomFieldView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Change or archive a custom field",
+        "tags": [
+          "custom-fields"
         ]
       }
     },

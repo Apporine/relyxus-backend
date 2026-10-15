@@ -20,6 +20,7 @@ from relyxus_api.modules.health.meta_controller import router as meta_router
 from relyxus_api.modules.health.service import DependencyProbe, HealthService
 from relyxus_api.modules.identity.controller import router as identity_router
 from relyxus_api.modules.incident.controller import router as incident_router
+from relyxus_api.modules.incident.field_controller import router as custom_field_router
 from relyxus_api.modules.incident.follow_up_controller import router as incident_follow_up_router
 from relyxus_api.modules.incident.handoff_controller import router as incident_handoff_router
 from relyxus_api.modules.incident.link_controller import router as incident_link_router
@@ -59,7 +60,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.30.0"
+API_CONTRACT_VERSION = "0.31.0"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 LICENSE_READINESS_PROBE_NAME = "commercial_license"
@@ -129,6 +130,7 @@ def create_app(settings: Settings) -> FastAPI:
         service_catalog_router,
         configuration_router,
         incident_type_router,
+        custom_field_router,
     ):
         app.include_router(router, responses=PROBLEM_RESPONSES | AUTHENTICATED_RESPONSES)
     return app

@@ -25,6 +25,11 @@ from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessService
 from relyxus_api.modules.audit.model import ActorType, AuditOutcome
 from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
+from relyxus_api.modules.configuration.model import ConfigurationObjectType
+from relyxus_api.modules.configuration.service import (
+    ConfigurationChange,
+    ConfigurationVersionService,
+)
 from relyxus_api.modules.team.model import Team, TeamMember, TeamRoleGrant
 from relyxus_api.modules.team.repository import TeamRepository
 from relyxus_api.shared.errors.app_errors import ConflictError, NotFoundError, ValidationFailedError
@@ -94,6 +99,7 @@ class TeamService:
     ) -> None:
         self._repository = repository or TeamRepository()
         self._audit = audit or AuditService()
+        self._versions = ConfigurationVersionService()
         self._access = access or WorkspaceAccessService(AccessRepository())
 
     async def create(
@@ -113,6 +119,11 @@ class TeamService:
             ),
         )
         await self._record(session, access, team.id, TEAM_CREATED_ACTION, None, _snapshot(team))
+        await self._versions.record(
+            session,
+            access,
+            ConfigurationChange(ConfigurationObjectType.TEAM, team.id, None, _snapshot(team)),
+        )
         return team
 
     async def get(self, session: AsyncSession, access: WorkspaceAccess, team_id: uuid.UUID) -> Team:
@@ -155,6 +166,11 @@ class TeamService:
             TEAM_UPDATED_ACTION,
             {key: before[key] for key in changed},
             {key: after[key] for key in changed},
+        )
+        await self._versions.record(
+            session,
+            access,
+            ConfigurationChange(ConfigurationObjectType.TEAM, team.id, before, after),
         )
         return team
 

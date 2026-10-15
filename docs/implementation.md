@@ -318,6 +318,16 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 
 ---
 
+## Feature F-CONFIG — Configuration versions, incident types and custom fields (MPS-14A, MPS-8A.01-8A.06)
+
+**Scope:** Ph0 "configuration versions with stable IDs" and the incident-type model (MPS-23.05), then types and custom fields on incidents (MPS-23.06).
+
+| # | Branch | Scope | Requirement IDs | Status |
+|---|---|---|---|---|
+| V1 | `feat/configuration-versions` | Append-only configuration versions (who, when, source, snapshot, difference) for teams and services; read API (migration 0029) | MPS-14A.07, MPS-20.29, MPS-8A.06 (mechanism) | in review |
+
+---
+
 ## Other features
 
 Product features beyond F-INCIDENT still depend on resolving remaining register section E questions where they block contracts (Q-11 triage detail, Q-08 entitlements catalogue, etc.).
@@ -650,3 +660,22 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - The audit log, which is auditor-only, still lists restricted incidents' events.
 
   **Results:** ruff and mypy strict pass; pytest 532 passed against local PostgreSQL.
+
+- **V1 — 2026-10-15** — Configuration versions.
+  - **Table `configuration_versions`** (migration 0029):
+    - One immutable row per change: object type and ID, version numbered per object from 1, source (`api` / `ui` / `terraform`), actor, full snapshot, and the difference as `{field: {before, after}}`.
+    - Unique (object type, object ID, version).
+    - Append-only triggers; forced RLS.
+  - **`ConfigurationVersionService.record`** runs in the same transaction as the change. Teams and services now record a version on create and update. Objects created before this release get version 1 on their next change.
+  - **Endpoints:**
+    - `GET /api/v1/configuration/{object_type}/{object_id}/versions` (oldest first, cursor-paginated)
+    - `GET …/versions/{version}`
+    - Any workspace member can read them.
+  - **Contract version 0.28.0.**
+  - **Not covered yet:**
+    - Rollback to an earlier version (MPS-14A.07).
+    - Terraform and UI as sources.
+    - Drift detection (MPS-14A.06).
+    - Versioning team membership and role grants.
+
+  **Results:** ruff and mypy strict pass; pytest 539 passed against local PostgreSQL.

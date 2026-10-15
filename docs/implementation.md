@@ -325,6 +325,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
 | V1 | `feat/configuration-versions` | Append-only configuration versions (who, when, source, snapshot, difference) for teams and services; read API (migration 0029) | MPS-14A.07, MPS-20.29, MPS-8A.06 (mechanism) | in review |
+| V2 | `feat/incident-types` | Incident types: create/list/get/update/archive, versioned via configuration versions; install the nine MPS-8A.02 defaults (migration 0030) | MPS-8A.01 (partial), MPS-8A.02, MPS-8A.06, MPS-20.26 (partial) | in review |
 
 ---
 
@@ -679,3 +680,27 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Versioning team membership and role grants.
 
   **Results:** ruff and mypy strict pass; pytest 539 passed against local PostgreSQL.
+
+- **V2 — 2026-10-15** — Incident types.
+  - **Table `incident_types`** (migration 0030):
+    - Key unique per workspace; `allowed_severities` (non-empty JSON array, stored in SEV1→SEV4 order, deduplicated), `default_severity` (CHECKed to be allowed), `default_visibility`.
+    - `version` is the current configuration version; `archived_at`.
+    - Forced RLS.
+  - **Endpoints:**
+    - `POST /api/v1/incident-types` (`Idempotency-Key`)
+    - `POST /incident-types/defaults`: installs the nine MPS-8A.02 defaults the workspace lacks, idempotently by key. Security event is invite-only and Data incident restricted, per the spec; default severities follow register **Q-43** (provisional).
+    - `GET /incident-types` (`include_archived`), `GET /incident-types/{id}`
+    - `PATCH /incident-types/{id}` (`If-Match`; archive and restore)
+    - Owners and admins change types; everyone reads them.
+  - **Versioning:** every change bumps `version` and writes a configuration version and an audit entry in the same transaction (MPS-8A.06).
+  - The structure-role error message is now "workspace configuration".
+  - **Contract version 0.29.0.**
+  - **Not covered yet** (MPS-8A.01 parts that arrive with their features):
+    - Fields per stage (V4/V5).
+    - Default roles.
+    - Regulator mappings.
+    - Automations.
+    - Forms.
+    - Communication defaults.
+
+  **Results:** ruff and mypy strict pass; pytest 545 passed against local PostgreSQL.

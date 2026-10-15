@@ -16,6 +16,7 @@ from relyxus_api.modules.incident.reviewer_model import IncidentReviewReviewer
 from relyxus_api.modules.incident.role_model import IncidentRoleAssignment
 from relyxus_api.modules.incident.task_model import IncidentTask
 from relyxus_api.modules.incident.timeline_model import IncidentTimelineEvent
+from relyxus_api.modules.incident.type_model import IncidentType
 from relyxus_api.modules.license.model import OrganizationLicense
 from relyxus_api.modules.team.model import Team, TeamMember, TeamRoleGrant
 from relyxus_api.modules.tenancy.model import Organization, Workspace
@@ -36,6 +37,7 @@ __all__ = [
     "IncidentRoleHandoff",
     "IncidentTask",
     "IncidentTimelineEvent",
+    "IncidentType",
     "Organization",
     "OrganizationLicense",
     "Team",

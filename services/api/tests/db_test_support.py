@@ -23,6 +23,7 @@ PROBE_ROLE = "relyxus_rls_probe"
 # Child tables first so deletes respect foreign keys.
 TENANT_TABLES = (
     "configuration_versions",
+    "incident_types",
     "incident_access_grants",
     "incident_affected_services",
     "services",

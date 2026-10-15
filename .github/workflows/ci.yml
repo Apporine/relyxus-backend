@@ -89,8 +89,71 @@ jobs:
     needs: [migrations, python, secrets]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        if: vars.AWS_CICD_USE_ACCESS_KEY != 'true' && vars.AWS_CICD_ROLE_ARN != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CICD_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (access key)
+        if: vars.AWS_CICD_USE_ACCESS_KEY == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_CICD_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_CICD_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Record deploy started (CloudWatch)
+        if: vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true'
+        run: bash infra/aws/cicd/scripts/publish-cicd-event.sh deploy started
+
+      - name: Optional CodeBuild (ECR image)
+        if: (vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true') && vars.AWS_CODEBUILD_ENABLED == 'true'
+        env:
+          SOURCE_BUCKET: ${{ vars.AWS_CICD_SOURCE_BUCKET }}
+        run: |
+          set -euo pipefail
+          : "${SOURCE_BUCKET:?Set repository variable AWS_CICD_SOURCE_BUCKET}"
+          bash infra/aws/cicd/scripts/publish-cicd-event.sh build started
+          ARCHIVE="relyxus-${GITHUB_SHA}.zip"
+          zip -rq "$ARCHIVE" . \
+            -x '.git/*' -x '.venv/*' -x 'venv/*' -x '**/__pycache__/*' \
+            -x '.pytest_cache/*' -x '.mypy_cache/*' -x '.ruff_cache/*' \
+            -x 'htmlcov/*' -x '*.pem' -x 'relyxus-deploy.zip'
+          KEY="builds/${GITHUB_SHA}/${ARCHIVE}"
+          aws s3 cp "$ARCHIVE" "s3://${SOURCE_BUCKET}/${KEY}"
+          BUILD_ID="$(aws codebuild start-build \
+            --project-name relyxus-trial-build \
+            --source-type-override S3 \
+            --source-location-override "${SOURCE_BUCKET}/${KEY}" \
+            --source-version "${GITHUB_SHA}" \
+            --query 'build.id' --output text)"
+          echo "CodeBuild build id: ${BUILD_ID}"
+          for _ in $(seq 1 60); do
+            PHASE="$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
+              --query 'builds[0].currentPhase' --output text)"
+            STATUS="$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
+              --query 'builds[0].buildStatus' --output text)"
+            echo "phase=${PHASE} status=${STATUS}"
+            if [[ "$STATUS" == "SUCCEEDED" ]]; then
+              bash infra/aws/cicd/scripts/publish-cicd-event.sh build succeeded
+              break
+            fi
+            if [[ "$STATUS" == "FAILED" || "$STATUS" == "FAULT" || "$STATUS" == "STOPPED" ]]; then
+              bash infra/aws/cicd/scripts/publish-cicd-event.sh build failed
+              exit 1
+            fi
+            sleep 15
+          done
 
       - name: Sync and restart the trial host
         env:
@@ -119,3 +182,11 @@ jobs:
             'chmod +x ~/relyxus-backend/infra/aws/entrypoint.sh && cd ~/relyxus-backend/infra/aws && docker compose up -d --build'
           ssh $ssh_opts "${EC2_USER}@${EC2_HOST}" \
             'for i in 1 2 3 4 5 6 7 8 9 10; do curl -fsS http://127.0.0.1/health && curl -fsS http://127.0.0.1/api/v1/meta && exit 0; sleep 3; done; exit 1'
+
+      - name: Record deploy succeeded (CloudWatch)
+        if: success() && (vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true')
+        run: bash infra/aws/cicd/scripts/publish-cicd-event.sh deploy succeeded
+
+      - name: Record deploy failed (CloudWatch)
+        if: failure() && (vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true')
+        run: bash infra/aws/cicd/scripts/publish-cicd-event.sh deploy failed

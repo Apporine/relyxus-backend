@@ -54,7 +54,9 @@ async def require_incident_write_access(
     workspace: WorkspaceSessionDependency,
 ) -> AsyncIterator[WorkspaceSession]:
     if not _INCIDENT_WRITE_ROLES.intersection(workspace.access.roles):
-        raise InsufficientWorkspaceRoleError("This workspace role cannot create incidents.")
+        raise InsufficientWorkspaceRoleError(
+            "This workspace role cannot create or change incidents."
+        )
     yield workspace
 
 

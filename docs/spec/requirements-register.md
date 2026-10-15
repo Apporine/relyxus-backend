@@ -1278,3 +1278,8 @@ Still open: Q-07a, Q-08, Q-10, Q-11, Q-17, Q-23, Q-24, Q-26, Q-27, Q-28, Q-32, Q
 **Q-31 The `important/` folder.**
 - It is untracked. MPS-22A.15 says to keep the spec in `docs/spec` as markdown.
 - Should the source PDFs/DOCX (marked "Confidential") be committed, or only this register and markdown extracts? Or neither?
+
+**Q-35 Task priority values (MPS-11.14).** The spec lists "priority" for live tasks but defines no scale. Provisional: `high` / `medium` / `low`, default `medium` (I8). Confirm or replace.
+
+**Q-36 Can done or cancelled tasks reopen?** MPS-11.15 lists the statuses but no transitions between them. Provisional: done and cancelled are final; a new task is created instead (I8).
+

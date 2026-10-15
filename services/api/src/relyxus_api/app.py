@@ -18,6 +18,7 @@ from relyxus_api.modules.health.meta_controller import router as meta_router
 from relyxus_api.modules.health.service import DependencyProbe, HealthService
 from relyxus_api.modules.identity.controller import router as identity_router
 from relyxus_api.modules.incident.controller import router as incident_router
+from relyxus_api.modules.incident.task_controller import router as incident_task_router
 from relyxus_api.modules.license.controller import router as license_router
 from relyxus_api.modules.license.key_set_loader import load_trusted_key_set_file
 from relyxus_api.modules.license.service import (
@@ -46,7 +47,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.11.0"
+API_CONTRACT_VERSION = "0.12.0"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 LICENSE_READINESS_PROBE_NAME = "commercial_license"
@@ -103,6 +104,7 @@ def create_app(settings: Settings) -> FastAPI:
         access_router,
         audit_router,
         incident_router,
+        incident_task_router,
         license_router,
         policy_router,
     ):

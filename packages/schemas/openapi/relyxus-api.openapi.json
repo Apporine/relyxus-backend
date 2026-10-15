@@ -158,6 +158,60 @@
         "title": "ChainVerificationReport",
         "type": "object"
       },
+      "CreateTaskRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "2026-10-15T09:30:00Z"
+            ],
+            "title": "Due At"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "One owner; omit to leave the task unassigned.",
+            "title": "Owner User Id"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TaskPriority",
+            "default": "medium",
+            "examples": [
+              "high"
+            ]
+          },
+          "title": {
+            "examples": [
+              "Confirm provider status with the card processor"
+            ],
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "CreateTaskRequest",
+        "type": "object"
+      },
       "CurrentIdentity": {
         "properties": {
           "authenticated_at": {
@@ -754,6 +808,32 @@
         "title": "ListEnvelope[IncidentView]",
         "type": "object"
       },
+      "ListEnvelope_TaskView_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TaskView"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListEnvelope[TaskView]",
+        "type": "object"
+      },
       "ListEnvelope_WorkspaceSummary_": {
         "properties": {
           "data": {
@@ -1201,6 +1281,24 @@
         "title": "SuccessEnvelope[ReadinessReport]",
         "type": "object"
       },
+      "SuccessEnvelope_TaskView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TaskView"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[TaskView]",
+        "type": "object"
+      },
       "SuccessEnvelope_WorkspaceSummary_": {
         "properties": {
           "data": {
@@ -1261,6 +1359,161 @@
           "data"
         ],
         "title": "SuccessEnvelope[list[IncidentRoleView]]",
+        "type": "object"
+      },
+      "TaskPriority": {
+        "description": "Provisional scale: MPS-11.14 names a priority but defines no values (register Q-35).",
+        "enum": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "title": "TaskPriority",
+        "type": "string"
+      },
+      "TaskSource": {
+        "description": "MPS-11.19 also lists template, playbook, workflow and AI suggestion; added with them.",
+        "enum": [
+          "manual"
+        ],
+        "title": "TaskSource",
+        "type": "string"
+      },
+      "TaskStatus": {
+        "description": "MPS-11.15. Done and cancelled are final until register Q-36 says otherwise.",
+        "enum": [
+          "open",
+          "in_progress",
+          "blocked",
+          "done",
+          "cancelled"
+        ],
+        "title": "TaskStatus",
+        "type": "string"
+      },
+      "TaskView": {
+        "properties": {
+          "cancellation_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancellation Reason"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "completed_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed By User Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_user_id": {
+            "format": "uuid",
+            "title": "Created By User Id",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "incident_id": {
+            "format": "uuid",
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "is_unassigned": {
+            "description": "True when nobody owns the task (MPS-11.14).",
+            "title": "Is Unassigned",
+            "type": "boolean"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TaskPriority"
+          },
+          "source": {
+            "$ref": "#/components/schemas/TaskSource"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "incident_id",
+          "title",
+          "priority",
+          "status",
+          "owner_user_id",
+          "is_unassigned",
+          "due_at",
+          "source",
+          "cancellation_reason",
+          "completed_at",
+          "completed_by_user_id",
+          "created_by_user_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TaskView",
         "type": "object"
       },
       "TransitionIncidentRequest": {
@@ -1365,6 +1618,91 @@
           }
         },
         "title": "UpdateIncidentRequest",
+        "type": "object"
+      },
+      "UpdateTaskRequest": {
+        "additionalProperties": false,
+        "description": "Partial update. Send `owner_user_id` or `due_at` as null to clear them.",
+        "properties": {
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "owner_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner User Id"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskPriority"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when cancelling.",
+            "examples": [
+              "No longer needed"
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "in_progress"
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "UpdateTaskRequest",
         "type": "object"
       },
       "UserStatus": {
@@ -1476,7 +1814,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.11.0"
+    "version": "0.12.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2536,6 +2874,371 @@
         "summary": "Assign an incident role",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/tasks": {
+      "get": {
+        "description": "Oldest first, cursor-paginated; no total. Visibility follows the incident.",
+        "operationId": "list_tasks_api_v1_incidents__incident_id__tasks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque cursor from `meta.next_cursor`",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from `meta.next_cursor`",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Items per page (1-100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page (1-100)",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_TaskView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List an incident's tasks",
+        "tags": [
+          "incident-tasks"
+        ]
+      },
+      "post": {
+        "description": "Adds a task to an open incident (MPS-11.14). The owner, if given, must be a member of this workspace. Requires `Idempotency-Key` and an incident-writing role.",
+        "operationId": "create_task_api_v1_incidents__incident_id__tasks_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TaskView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a live task on an incident",
+        "tags": [
+          "incident-tasks"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/tasks/{task_id}": {
+      "patch": {
+        "description": "Change title, priority, owner, due time or status. Cancelling needs a `reason`; done and cancelled tasks are final. Send `owner_user_id` or `due_at` as null to clear them. Optional `If-Match` returns 412 when the task changed since it was read.",
+        "operationId": "update_task_api_v1_incidents__incident_id__tasks__task_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_TaskView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update a task",
+        "tags": [
+          "incident-tasks"
         ]
       }
     },

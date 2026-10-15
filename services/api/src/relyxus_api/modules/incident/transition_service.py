@@ -8,6 +8,7 @@ Not yet enforceable (their records do not exist yet; tracked in the PR and ADR-0
 a working hypothesis or action before mitigating (8A.09), a mitigation action before
 monitoring (8A.10), impact back to normal for the watch period before resolving (8A.11).
 Closing is refused until post-incident review sign-off exists (8A.12, MPS-13.17).
+Resolving creates the post-incident review (8A.11).
 """
 
 import uuid
@@ -27,6 +28,7 @@ from relyxus_api.modules.incident.lifecycle import (
 )
 from relyxus_api.modules.incident.model import Incident
 from relyxus_api.modules.incident.repository import IncidentRepository
+from relyxus_api.modules.incident.review_service import IncidentReviewService
 from relyxus_api.modules.incident.service import INCIDENT_TARGET_TYPE, IncidentNotFoundError
 from relyxus_api.modules.incident.transition_rules import roles_allowed_for
 from relyxus_api.shared.errors.app_errors import ConflictError, ValidationFailedError
@@ -73,10 +75,12 @@ class IncidentTransitionService:
         reopen_window: timedelta,
         repository: IncidentRepository | None = None,
         activity: IncidentActivityRecorder | None = None,
+        reviews: IncidentReviewService | None = None,
     ) -> None:
         self._reopen_window = reopen_window
         self._repository = repository or IncidentRepository()
         self._activity = activity or IncidentActivityRecorder()
+        self._reviews = reviews or IncidentReviewService()
 
     async def transition(
         self, session: AsyncSession, access: WorkspaceAccess, command: TransitionCommand
@@ -122,6 +126,9 @@ class IncidentTransitionService:
                 after=_after_state(incident, command.reason),
             ),
         )
+        if target is _STATE.RESOLVED:
+            # MPS-8A.11: resolving fires post-incident review creation.
+            await self._reviews.create_on_resolution(session, access, incident)
         return incident
 
     async def _apply_target_rules(

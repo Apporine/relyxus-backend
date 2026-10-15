@@ -21,6 +21,7 @@ from relyxus_api.modules.incident.controller import router as incident_router
 from relyxus_api.modules.incident.follow_up_controller import router as incident_follow_up_router
 from relyxus_api.modules.incident.handoff_controller import router as incident_handoff_router
 from relyxus_api.modules.incident.link_controller import router as incident_link_router
+from relyxus_api.modules.incident.review_controller import router as incident_review_router
 from relyxus_api.modules.incident.task_controller import router as incident_task_router
 from relyxus_api.modules.incident.timeline_controller import router as incident_timeline_router
 from relyxus_api.modules.license.controller import router as license_router
@@ -51,7 +52,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.19.0"
+API_CONTRACT_VERSION = "0.20.0"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 LICENSE_READINESS_PROBE_NAME = "commercial_license"
@@ -113,6 +114,7 @@ def create_app(settings: Settings) -> FastAPI:
         incident_link_router,
         incident_handoff_router,
         incident_follow_up_router,
+        incident_review_router,
         license_router,
         policy_router,
     ):

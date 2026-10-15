@@ -7,6 +7,7 @@ from relyxus_api.modules.incident.follow_up_model import IncidentFollowUp
 from relyxus_api.modules.incident.handoff_model import IncidentRoleHandoff
 from relyxus_api.modules.incident.link_model import IncidentLink
 from relyxus_api.modules.incident.model import Incident
+from relyxus_api.modules.incident.review_model import IncidentReview
 from relyxus_api.modules.incident.role_model import IncidentRoleAssignment
 from relyxus_api.modules.incident.task_model import IncidentTask
 from relyxus_api.modules.incident.timeline_model import IncidentTimelineEvent
@@ -19,6 +20,7 @@ __all__ = [
     "Incident",
     "IncidentFollowUp",
     "IncidentLink",
+    "IncidentReview",
     "IncidentRoleAssignment",
     "IncidentRoleHandoff",
     "IncidentTask",

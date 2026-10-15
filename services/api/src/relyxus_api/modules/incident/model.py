@@ -1,0 +1,54 @@
+"""Workspace-scoped incident records (MPS-8A.07 Ph0 storage; declare API follows)."""
+
+import uuid
+from enum import StrEnum
+
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
+from relyxus_api.shared.db.base import Base, RecordColumns
+
+TITLE_MAX_LENGTH = 500
+
+
+class IncidentSeverity(StrEnum):
+    """Default four-level guide (MPS-8.13); types may restrict subsets in Ph1."""
+
+    SEV1 = "sev1"
+    SEV2 = "sev2"
+    SEV3 = "sev3"
+    SEV4 = "sev4"
+
+
+def _values_sql(values: type[StrEnum]) -> str:
+    return ", ".join(f"'{member.value}'" for member in values)
+
+
+class Incident(RecordColumns, Base):
+    __tablename__ = "incidents"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["workspace_id", "organization_id"],
+            ["workspaces.id", "workspaces.organization_id"],
+            name="fk_incidents_workspace_organization",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            f"lifecycle_state IN ({_values_sql(IncidentLifecycleState)})",
+            name="lifecycle_state",
+        ),
+        CheckConstraint(f"severity IN ({_values_sql(IncidentSeverity)})", name="severity"),
+        CheckConstraint(
+            f"char_length(title) >= 1 AND char_length(title) <= {TITLE_MAX_LENGTH}",
+            name="title_length",
+        ),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"), index=True
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    lifecycle_state: Mapped[str] = mapped_column(String(32))
+    severity: Mapped[str] = mapped_column(String(8))
+    title: Mapped[str] = mapped_column(String(TITLE_MAX_LENGTH))

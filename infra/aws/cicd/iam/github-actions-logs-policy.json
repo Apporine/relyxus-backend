@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudWatchCicdTelemetry",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:logs:us-east-1:925234975399:log-group:/relyxus/cicd/*",
+        "arn:aws:logs:us-east-1:925234975399:log-group:/relyxus/cicd/*:log-stream:*"
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 import uuid
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, String
+from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
@@ -43,12 +43,14 @@ class Incident(RecordColumns, Base):
             f"char_length(title) >= 1 AND char_length(title) <= {TITLE_MAX_LENGTH}",
             name="title_length",
         ),
+        Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
+        Index("ix_incidents_organization_id", "organization_id"),
     )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("organizations.id", ondelete="RESTRICT"), index=True
+        ForeignKey("organizations.id", ondelete="RESTRICT")
     )
-    workspace_id: Mapped[uuid.UUID] = mapped_column(index=True)
+    workspace_id: Mapped[uuid.UUID] = mapped_column()
     lifecycle_state: Mapped[str] = mapped_column(String(32))
     severity: Mapped[str] = mapped_column(String(8))
     title: Mapped[str] = mapped_column(String(TITLE_MAX_LENGTH))

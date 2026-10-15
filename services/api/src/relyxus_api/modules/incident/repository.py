@@ -1,4 +1,7 @@
-"""Incident persistence. Queries only; lifecycle and access rules live in the service."""
+"""Incident persistence. Queries only; lifecycle and access rules live in the service.
+
+Every read applies the incident visibility rule (`visibility.visible_to`) for the viewer
+on the session, so restricted incidents are invisible rather than forbidden."""
 
 import uuid
 from collections.abc import Collection
@@ -7,8 +10,10 @@ from dataclasses import dataclass
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from relyxus_api.modules.access.viewer import get_viewer
 from relyxus_api.modules.incident.affected_service_model import IncidentAffectedService
 from relyxus_api.modules.incident.model import Incident
+from relyxus_api.modules.incident.visibility import visible_to
 
 _NUMBER_LOCK = text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
 
@@ -45,7 +50,9 @@ class IncidentRepository:
         # same organisation out.
         incident: Incident | None = await session.scalar(
             select(Incident).where(
-                Incident.id == incident_id, Incident.workspace_id == workspace_id
+                Incident.id == incident_id,
+                Incident.workspace_id == workspace_id,
+                visible_to(get_viewer(session)),
             )
         )
         return incident
@@ -57,8 +64,12 @@ class IncidentRepository:
         transitions on the same incident run one after another."""
         incident: Incident | None = await session.scalar(
             select(Incident)
-            .where(Incident.id == incident_id, Incident.workspace_id == workspace_id)
-            .with_for_update()
+            .where(
+                Incident.id == incident_id,
+                Incident.workspace_id == workspace_id,
+                visible_to(get_viewer(session)),
+            )
+            .with_for_update(of=Incident)
         )
         return incident
 
@@ -76,7 +87,9 @@ class IncidentRepository:
         limit: int,
     ) -> list[Incident]:
         """Newest first (UUIDv7 IDs sort by creation time); keyset page before `before_id`."""
-        query = select(Incident).where(Incident.workspace_id == workspace_id)
+        query = select(Incident).where(
+            Incident.workspace_id == workspace_id, visible_to(get_viewer(session))
+        )
         if filters.lifecycle_states:
             query = query.where(Incident.lifecycle_state.in_(filters.lifecycle_states))
         if filters.severities:

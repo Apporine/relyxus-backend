@@ -1,6 +1,87 @@
 {
   "components": {
     "schemas": {
+      "AccessGrantView": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "granted_at": {
+            "format": "date-time",
+            "title": "Granted At",
+            "type": "string"
+          },
+          "granted_by_user_id": {
+            "format": "uuid",
+            "title": "Granted By User Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "team_id",
+          "role",
+          "reason",
+          "expires_at",
+          "granted_by_user_id",
+          "granted_at"
+        ],
+        "title": "AccessGrantView",
+        "type": "object"
+      },
       "ActorType": {
         "enum": [
           "user",
@@ -244,6 +325,32 @@
         "title": "ChainVerificationReport",
         "type": "object"
       },
+      "ChangeVisibilityRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "examples": [
+              "Suspected insider involvement"
+            ],
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/IncidentVisibility",
+            "examples": [
+              "restricted"
+            ]
+          }
+        },
+        "required": [
+          "visibility",
+          "reason"
+        ],
+        "title": "ChangeVisibilityRequest",
+        "type": "object"
+      },
       "ConvertTaskRequest": {
         "additionalProperties": false,
         "properties": {
@@ -261,6 +368,77 @@
           }
         },
         "title": "ConvertTaskRequest",
+        "type": "object"
+      },
+      "CreateAccessGrantRequest": {
+        "additionalProperties": false,
+        "description": "Name exactly one of `user_id`, `team_id` or `role`.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              "2026-10-22T00:00:00Z"
+            ],
+            "title": "Expires At"
+          },
+          "reason": {
+            "examples": [
+              "Fraud team lead needs the timeline"
+            ],
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Counts only while the incident is `restricted`."
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Counts only while the incident is `restricted`.",
+            "title": "Team Id"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "CreateAccessGrantRequest",
         "type": "object"
       },
       "CreateFollowUpRequest": {
@@ -675,6 +853,11 @@
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/IncidentVisibility",
+            "default": "workspace",
+            "description": "Who can see the incident (MPS-8A.23). Anything but `workspace` hides it from everyone except owners, its creator and role holders, and granted people."
           }
         },
         "required": [
@@ -1403,6 +1586,12 @@
             "title": "Updated At",
             "type": "string"
           },
+          "visibility": {
+            "$ref": "#/components/schemas/IncidentVisibility",
+            "examples": [
+              "workspace"
+            ]
+          },
           "workspace_id": {
             "examples": [
               "0192f0c4-0000-7000-8000-0000000000a1"
@@ -1418,6 +1607,7 @@
           "number",
           "title",
           "severity",
+          "visibility",
           "lifecycle_state",
           "impact_started_at",
           "detected_at",
@@ -1438,6 +1628,17 @@
         ],
         "title": "IncidentView",
         "type": "object"
+      },
+      "IncidentVisibility": {
+        "description": "MPS-8A.23 visibility modes (Ph0 model).",
+        "enum": [
+          "workspace",
+          "restricted",
+          "invite_only",
+          "confidential"
+        ],
+        "title": "IncidentVisibility",
+        "type": "string"
       },
       "InstallLicenseRequest": {
         "properties": {
@@ -2361,6 +2562,24 @@
         "title": "ServiceView",
         "type": "object"
       },
+      "SuccessEnvelope_AccessGrantView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AccessGrantView"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[AccessGrantView]",
+        "type": "object"
+      },
       "SuccessEnvelope_AffectedServiceView_": {
         "properties": {
           "data": {
@@ -2777,6 +2996,28 @@
           "data"
         ],
         "title": "SuccessEnvelope[dict[str, str]]",
+        "type": "object"
+      },
+      "SuccessEnvelope_list_AccessGrantView__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AccessGrantView"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[list[AccessGrantView]]",
         "type": "object"
       },
       "SuccessEnvelope_list_AffectedServiceView__": {
@@ -3854,7 +4095,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.26.0"
+    "version": "0.27.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -4638,6 +4879,296 @@
         "summary": "Change an incident's title, severity or reported times",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/access-grants": {
+      "get": {
+        "description": "Grants of the incident, oldest first (at most 200), expired ones included.",
+        "operationId": "list_access_grants_api_v1_incidents__incident_id__access_grants_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_list_AccessGrantView__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List who has been granted access",
+        "tags": [
+          "incident-visibility"
+        ]
+      },
+      "post": {
+        "description": "Grants one workspace member, team or workspace role access, with a reason and an optional expiry (MPS-20.30). Team and role grants count only for `restricted` incidents. Owners and incident commanders.",
+        "operationId": "create_access_grant_api_v1_incidents__incident_id__access_grants_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccessGrantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_AccessGrantView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Grant access to an incident",
+        "tags": [
+          "incident-visibility"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/access-grants/{grant_id}": {
+      "delete": {
+        "description": "Owners and incident commanders. Takes effect on the next request.",
+        "operationId": "revoke_access_grant_api_v1_incidents__incident_id__access_grants__grant_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Grant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke an access grant",
+        "tags": [
+          "incident-visibility"
         ]
       }
     },
@@ -8185,6 +8716,109 @@
         "summary": "Move an incident through its lifecycle",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/visibility": {
+      "put": {
+        "description": "Sets the visibility mode (MPS-8A.23): `workspace`, `restricted` (named people, teams or roles), `invite_only` or `confidential` (named people only). People without access get 404 for the incident and everything under it. The caller keeps access through a person grant. Owners and incident commanders; needs a `reason`.",
+        "operationId": "change_visibility_api_v1_incidents__incident_id__visibility_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeVisibilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_IncidentView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Change who can see an incident",
+        "tags": [
+          "incident-visibility"
         ]
       }
     },

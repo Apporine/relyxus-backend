@@ -21,6 +21,15 @@ TITLE_MAX_LENGTH = 500
 ROOT_CAUSE_MAX_LENGTH = 5000
 
 
+class IncidentVisibility(StrEnum):
+    """MPS-8A.23 visibility modes (Ph0 model)."""
+
+    WORKSPACE = "workspace"  # everyone with workspace access
+    RESTRICTED = "restricted"  # named people, teams or roles
+    INVITE_ONLY = "invite_only"  # named people only
+    CONFIDENTIAL = "confidential"  # invite only; export lock and retention hold to come
+
+
 class IncidentSeverity(StrEnum):
     """Default four-level guide (MPS-8.13); types may restrict subsets in Ph1."""
 
@@ -48,6 +57,7 @@ class Incident(RecordColumns, Base):
             name="lifecycle_state",
         ),
         CheckConstraint(f"severity IN ({_values_sql(IncidentSeverity)})", name="severity"),
+        CheckConstraint(f"visibility IN ({_values_sql(IncidentVisibility)})", name="visibility"),
         CheckConstraint(
             f"char_length(title) >= 1 AND char_length(title) <= {TITLE_MAX_LENGTH}",
             name="title_length",
@@ -97,6 +107,11 @@ class Incident(RecordColumns, Base):
     lifecycle_state: Mapped[str] = mapped_column(String(32))
     severity: Mapped[str] = mapped_column(String(8))
     title: Mapped[str] = mapped_column(String(TITLE_MAX_LENGTH))
+    visibility: Mapped[str] = mapped_column(
+        String(16), default=IncidentVisibility.WORKSPACE.value, server_default="workspace"
+    )
+    # Who created the record (declared or drafted); NULL for rows created before 0028.
+    created_by_user_id: Mapped[uuid.UUID | None]
     # Reported by people (or, later, alerts): when impact began and when it was noticed.
     impact_started_at: Mapped[datetime | None]
     detected_at: Mapped[datetime | None]

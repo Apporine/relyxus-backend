@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.access.model import User, UserStatus, WorkspaceRole
 from relyxus_api.modules.access.repository import AccessRepository, WorkspaceListing
+from relyxus_api.modules.access.viewer import Viewer, set_viewer
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
 from relyxus_api.shared.auth.access_token import AuthenticatedPrincipal
 from relyxus_api.shared.errors.app_errors import PermissionDeniedError
@@ -69,6 +70,7 @@ class WorkspaceAccessService:
         # Q-18: direct grants plus the user's teams' grants. Team roles only reach people who
         # are direct members, so removing a membership removes every role in the workspace.
         team_roles = await self._repository.list_team_roles(session, user.id, workspace_id)
+        team_ids = await self._repository.list_team_ids(session, user.id, workspace_id)
         access = WorkspaceAccess(
             user_id=user.id,
             organization_id=grants[0].organization_id,
@@ -82,6 +84,11 @@ class WorkspaceAccessService:
         # From here on, only the chosen tenant is visible, never the caller's other
         # organisations (the user context would widen workspace and org reads).
         await self._repository.clear_user_context(session)
+        # Record-level rules (restricted incidents) read the caller from the session.
+        set_viewer(
+            session,
+            Viewer(user_id=user.id, roles=access.roles, team_ids=frozenset(team_ids)),
+        )
         return access
 
     async def is_workspace_member(

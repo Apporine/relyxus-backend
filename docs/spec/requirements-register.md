@@ -1283,3 +1283,5 @@ Still open: Q-07a, Q-08, Q-10, Q-11, Q-17, Q-23, Q-24, Q-26, Q-27, Q-28, Q-32, Q
 
 **Q-36 Can done or cancelled tasks reopen?** MPS-11.15 lists the statuses but no transitions between them. Provisional: done and cancelled are final; a new task is created instead (I8).
 
+
+**Q-37 Which follow-ups are mandatory by default? (MPS-13.17)** The closure gate counts "mandatory follow-ups" for SEV1/SEV2 but the spec does not say what makes one mandatory. Provisional: `is_mandatory` defaults to true on SEV1/SEV2 incidents and false otherwise; anyone who can write incidents can change it (I14). Confirm, or name who may mark a follow-up optional.

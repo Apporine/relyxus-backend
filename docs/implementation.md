@@ -329,6 +329,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | V3 | `feat/incident-declare-type` | Declare under an incident type: type required once the workspace has types, defaults severity/visibility, allowed severities enforced (also on later changes, per declared type version), list filter by type (migration 0031) | MPS-8A.08 (type), MPS-8A.06 (incident keeps its version), MPS-20.12 | in review |
 | V4 | `feat/custom-fields` | Custom-field library: 11 data types, choice options, display conditions (type, severity), required-at stage, archive keeps values, versioned (migration 0032) | MPS-8A.03, MPS-8A.04 (definition), MPS-8A.05, MPS-8A.06, MPS-20.27 | in review |
 | V5 | `feat/incident-field-values` | Custom field values on incidents: typed validation and normalisation, display conditions, values at declaration, required-at-stage gate on declare and transitions, on timeline (migration 0033) | MPS-8A.04, MPS-8A.05 (values kept), MPS-20.28, MPS-15.04 (required-field checks) | in review |
+| F1 | `fix/check-constraint-names` | Rename 66 CHECK constraints from doubled `ck_<table>_ck_<table>_…` names to their model names (migration 0034); test keeps DB and model names identical | context.md §9 (database rules), ADR-0001 naming | in review |
 
 ---
 
@@ -773,3 +774,11 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Per-type forms (declare/update/resolve) and required-field lists beyond display conditions (MPS-8A.01 forms).
 
   **Results:** ruff and mypy strict pass; pytest 585 passed against local PostgreSQL.
+
+- **F1 — 2026-10-15** — CHECK constraint names.
+  - **Problem** (found in V4): migrations 0001–0033 passed full names (`ck_<table>_<name>`) while the metadata naming convention was applied again. So 66 of 69 CHECK constraints were created as `ck_<table>_ck_<table>_<name>`, and long ones were truncated to `…_<hash>`. Behaviour was unaffected, but constraint errors were unreadable.
+  - **Migration 0034** renames each one to its model name. The mapping was computed from the models with SQLAlchemy's truncation rule and verified against the database (66 doubled, 3 already correct, nothing unexplained). Each rename runs only if the doubled name exists; downgrade restores the old names.
+  - **New `test_constraint_names.py`** asserts the database CHECK names equal the model names. New migrations should name constraints with `op.f(...)`.
+  - No API change (contract stays 0.32.0).
+
+  **Results:** ruff and mypy strict pass; pytest 586 passed against local PostgreSQL.

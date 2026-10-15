@@ -71,6 +71,7 @@ class Incident(RecordColumns, Base):
         Index("ix_incidents_merged_into_incident_id", "merged_into_incident_id"),
         Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
         Index("ix_incidents_organization_id", "organization_id"),
+        Index("ix_incidents_workspace_id_id", "workspace_id", "id"),
     )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(

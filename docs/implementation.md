@@ -286,6 +286,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I1 | [#38](https://github.com/Apporine/relyxus-backend/pull/38) `feat/incident-lifecycle-and-table` | ADR-0004, lifecycle validator, `incidents` table + RLS (migration 0009) | MPS-8A.07, MPS-8A.22, MPS-23.05 | merged |
 | I2 | `feat/incident-declare` | `POST /api/v1/incidents` declare or draft, `GET /api/v1/incidents/{id}`, declaration timestamps (migration 0010), audit in-transaction | MPS-8A.08 (partial), MPS-8A.20, MPS-8A.22, MPS-22A.05, MPS-15.04 | in review |
 | I3 | `feat/incident-transitions` | `POST /api/v1/incidents/{id}/transitions`, per-transition roles, reopen window, cancel/merge rules, timestamps (migration 0011), ETag | MPS-8A.09–8A.17, MPS-8A.20, MPS-8A.22, MPS-22A.05 | in review |
+| I4 | `feat/incident-list` | `GET /api/v1/incidents` newest first, state/severity filters, cursor paging; index (migration 0012) | MPS-15.02, MPS-22A.04 | in review |
 
 ---
 
@@ -326,3 +327,13 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Open question:** ADR-0004 text lets `resolved` be cancelled or merged, but the merged validator doesn't (Q-11(a)). The validator is unchanged pending a decision.
 
   **Results:** ruff and mypy strict pass; pytest 375 passed against local PostgreSQL.
+
+- **I4 — 2026-10-15** — Incident list.
+  - **Endpoint:** `GET /api/v1/incidents` for the open workspace, newest first (UUIDv7 ID order).
+  - **Filters:** optional repeatable `lifecycle_state` and `severity`.
+  - **Paging:** keyset cursor, no total.
+  - **Access:** any workspace member can read.
+  - **Migration `0012`:** `(workspace_id, id)` index.
+  - **Contract version 0.8.0.**
+
+  **Results:** ruff and mypy strict pass; pytest 383 passed against local PostgreSQL.

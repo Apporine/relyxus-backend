@@ -2,27 +2,29 @@ import uuid
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Request, Response
+from fastapi import APIRouter, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
 from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceDependency
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
-from relyxus_api.modules.incident.model import Incident
+from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
+from relyxus_api.modules.incident.model import Incident, IncidentSeverity
 from relyxus_api.modules.incident.schema import (
     DeclareIncidentRequest,
     IncidentView,
     TransitionIncidentRequest,
 )
-from relyxus_api.modules.incident.service import IncidentService, NewIncident
+from relyxus_api.modules.incident.service import IncidentFilters, IncidentService, NewIncident
 from relyxus_api.modules.incident.transition_service import (
     IncidentTransitionService,
     TransitionCommand,
 )
 from relyxus_api.shared.config.settings import Settings
 from relyxus_api.shared.constants import IDEMPOTENCY_HEADER
-from relyxus_api.shared.http.envelope import SuccessEnvelope, wrap_success
+from relyxus_api.shared.http.envelope import ListEnvelope, SuccessEnvelope, wrap_page, wrap_success
 from relyxus_api.shared.http.etag import format_weak_etag
+from relyxus_api.shared.http.pagination import Page, PageRequestDependency
 
 INCIDENTS_TAG = "incidents"
 CREATED_STATUS = 201
@@ -87,6 +89,30 @@ async def declare_incident(
         content=payload,
         headers={"Location": f"{request.url.path}/{incident.id}", **_etag_headers(incident)},
     )
+
+
+@router.get(
+    "/incidents",
+    summary="List incidents",
+    description=(
+        f"Incidents in the workspace named in `{WORKSPACE_HEADER}`, newest first. Filter by one "
+        "or more `lifecycle_state` and `severity` values (repeat the parameter). "
+        "Cursor-paginated; no total is returned."
+    ),
+    response_model=ListEnvelope[IncidentView],
+)
+async def list_incidents(
+    workspace: WorkspaceSessionDependency,
+    page_request: PageRequestDependency,
+    lifecycle_state: Annotated[list[IncidentLifecycleState] | None, Query()] = None,
+    severity: Annotated[list[IncidentSeverity] | None, Query()] = None,
+) -> ListEnvelope[IncidentView]:
+    filters = IncidentFilters(
+        lifecycle_states=frozenset(lifecycle_state or ()), severities=frozenset(severity or ())
+    )
+    page = await IncidentService().list(workspace.session, workspace.access, filters, page_request)
+    views = [IncidentView.from_incident(incident) for incident in page.items]
+    return wrap_page(Page(items=views, next_cursor=page.next_cursor, limit=page.limit))
 
 
 @router.get(

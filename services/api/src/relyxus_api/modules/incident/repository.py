@@ -26,3 +26,20 @@ class IncidentRepository:
             )
         )
         return incident
+
+    async def lock_in_workspace(
+        self, session: AsyncSession, workspace_id: uuid.UUID, incident_id: uuid.UUID
+    ) -> Incident | None:
+        """Row-locks the incident for the rest of the transaction, so concurrent
+        transitions on the same incident run one after another."""
+        incident: Incident | None = await session.scalar(
+            select(Incident)
+            .where(Incident.id == incident_id, Incident.workspace_id == workspace_id)
+            .with_for_update()
+        )
+        return incident
+
+    async def save(self, session: AsyncSession, incident: Incident) -> Incident:
+        await session.flush()
+        await session.refresh(incident)
+        return incident

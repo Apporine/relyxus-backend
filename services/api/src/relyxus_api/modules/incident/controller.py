@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Header, Request, Response
@@ -7,15 +8,38 @@ from fastapi.responses import JSONResponse
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
 from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceDependency
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
-from relyxus_api.modules.incident.schema import DeclareIncidentRequest, IncidentView
+from relyxus_api.modules.incident.model import Incident
+from relyxus_api.modules.incident.schema import (
+    DeclareIncidentRequest,
+    IncidentView,
+    TransitionIncidentRequest,
+)
 from relyxus_api.modules.incident.service import IncidentService, NewIncident
+from relyxus_api.modules.incident.transition_service import (
+    IncidentTransitionService,
+    TransitionCommand,
+)
+from relyxus_api.shared.config.settings import Settings
 from relyxus_api.shared.constants import IDEMPOTENCY_HEADER
 from relyxus_api.shared.http.envelope import SuccessEnvelope, wrap_success
+from relyxus_api.shared.http.etag import format_weak_etag
 
 INCIDENTS_TAG = "incidents"
 CREATED_STATUS = 201
+OK_STATUS = 200
 
 router = APIRouter(prefix="/api/v1", tags=[INCIDENTS_TAG])
+
+
+def _incident_body(incident: Incident) -> dict[str, object]:
+    body: dict[str, object] = wrap_success(IncidentView.from_incident(incident)).model_dump(
+        mode="json"
+    )
+    return body
+
+
+def _etag_headers(incident: Incident) -> dict[str, str]:
+    return {"ETag": format_weak_etag(incident.id, incident.updated_at)}
 
 
 @router.post(
@@ -54,14 +78,14 @@ async def declare_incident(
         workspace.access,
         NewIncident(title=body.title, severity=body.severity, is_declared=body.is_declared),
     )
-    payload = wrap_success(IncidentView.from_incident(incident)).model_dump(mode="json")
+    payload = _incident_body(incident)
     await idempotency.complete(
         workspace.session, reservation.record_id, status_code=CREATED_STATUS, body=payload
     )
     return JSONResponse(
         status_code=CREATED_STATUS,
         content=payload,
-        headers={"Location": f"{request.url.path}/{incident.id}"},
+        headers={"Location": f"{request.url.path}/{incident.id}", **_etag_headers(incident)},
     )
 
 
@@ -70,12 +94,66 @@ async def declare_incident(
     summary="Get an incident",
     description=(
         f"One incident in the workspace named in `{WORKSPACE_HEADER}`. Incidents in other "
-        "workspaces return 404, the same as incidents that do not exist."
+        "workspaces return 404, the same as incidents that do not exist. The `ETag` can be "
+        "sent as `If-Match` on transitions."
     ),
     response_model=SuccessEnvelope[IncidentView],
 )
-async def get_incident(
-    incident_id: uuid.UUID, workspace: WorkspaceSessionDependency
-) -> SuccessEnvelope[IncidentView]:
+async def get_incident(incident_id: uuid.UUID, workspace: WorkspaceSessionDependency) -> Response:
     incident = await IncidentService().get(workspace.session, workspace.access, incident_id)
-    return wrap_success(IncidentView.from_incident(incident))
+    return JSONResponse(content=_incident_body(incident), headers=_etag_headers(incident))
+
+
+@router.post(
+    "/incidents/{incident_id}/transitions",
+    summary="Move an incident through its lifecycle",
+    description=(
+        "Applies one lifecycle transition (ADR-0004) and records it in the workspace audit "
+        "chain in the same transaction. Each move is limited to the roles MPS-8A names; "
+        "cancelling and reopening need a `reason`; merging needs `merged_into_incident_id`; "
+        "reopening is allowed only within the configured window after resolution; closing "
+        "returns 409 until post-incident review sign-off exists. Optional `If-Match` returns "
+        f"412 if the incident changed since it was read. Requires `{IDEMPOTENCY_HEADER}`."
+    ),
+    response_model=SuccessEnvelope[IncidentView],
+)
+async def transition_incident(
+    request: Request,
+    incident_id: uuid.UUID,
+    workspace: WorkspaceSessionDependency,
+    body: TransitionIncidentRequest,
+    idempotency_key: Annotated[str, Header(alias=IDEMPOTENCY_HEADER)],
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Response:
+    idempotency = IdempotencyService()
+    reservation = await idempotency.begin(
+        workspace.session,
+        organization_id=workspace.access.organization_id,
+        idempotency_key=idempotency_key,
+        method=request.method,
+        path=request.url.path,
+        payload=body.model_dump(mode="json"),
+    )
+    if isinstance(reservation, IdempotencyReplay):
+        return JSONResponse(status_code=reservation.status_code, content=reservation.body)
+
+    settings: Settings = request.app.state.settings
+    service = IncidentTransitionService(
+        reopen_window=timedelta(days=settings.incident_reopen_window_days)
+    )
+    incident = await service.transition(
+        workspace.session,
+        workspace.access,
+        TransitionCommand(
+            incident_id=incident_id,
+            target_state=body.target_state,
+            reason=body.reason,
+            merged_into_incident_id=body.merged_into_incident_id,
+            if_match=if_match,
+        ),
+    )
+    payload = _incident_body(incident)
+    await idempotency.complete(
+        workspace.session, reservation.record_id, status_code=OK_STATUS, body=payload
+    )
+    return JSONResponse(content=payload, headers=_etag_headers(incident))

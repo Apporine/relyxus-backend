@@ -7,7 +7,15 @@ value raises immediately so a misconfigured instance never starts serving traffi
 import uuid
 from enum import StrEnum
 
-from pydantic import AnyHttpUrl, Field, NonNegativeInt, PositiveFloat, SecretStr, field_validator
+from pydantic import (
+    AnyHttpUrl,
+    Field,
+    NonNegativeInt,
+    PositiveFloat,
+    PositiveInt,
+    SecretStr,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -46,6 +54,8 @@ class Settings(BaseSettings):
     license_status_fetch_timeout_seconds: PositiveFloat = 5.0
     license_status_cache_ttl_seconds: NonNegativeInt = 3600
     license_status_outage_grace_seconds: NonNegativeInt = 86_400
+    # MPS-8A.17: reopen within 7 days of resolution (a default to confirm, MPS-25.03).
+    incident_reopen_window_days: PositiveInt = 7
     policy_bundle_path: str | None = None
 
     @field_validator("database_url")

@@ -31,3 +31,9 @@ Terminal states admit no further lifecycle transitions.
 
 - Pure functions in `relyxus_api.modules.incident.lifecycle` (`validate_lifecycle_transition`).
 - HTTP declare/transition endpoints and audit hooks come in follow-up PRs; the database stores `lifecycle_state` with CHECK constraints matching this ADR.
+
+## Addendum (2026-10-15, I3): transitions API
+
+- **Prerequisites not yet enforceable.** "A working hypothesis or action recorded" (8A.09), "mitigation action recorded" (8A.10) and "impact back to normal for the watch period" (8A.11) depend on records that do not exist yet. Roles and the lifecycle graph are enforced now; these checks arrive with the Brain, actions and the impact model.
+- **Closing is refused** (409 `INCIDENT_REVIEW_REQUIRED`) until post-incident review sign-off exists (8A.12, MPS-13.17).
+- **Inconsistency for Q-11(a).** The table above lists `resolved` as open (so it could be cancelled or merged), but `validate_lifecycle_transition` allows only `resolved → closed | investigating`. The validator is what runs. Resolve with Q-11(a).

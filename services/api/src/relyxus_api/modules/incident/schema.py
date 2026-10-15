@@ -36,6 +36,11 @@ class IncidentView(BaseModel):
     lifecycle_state: IncidentLifecycleState = Field(examples=[IncidentLifecycleState.INVESTIGATING])
     declared_at: datetime | None = Field(examples=["2026-10-15T07:56:00Z"])
     declared_by_user_id: uuid.UUID | None = Field(examples=["0192f0c4-0000-7000-8000-0000000000f1"])
+    mitigated_at: datetime | None = Field(examples=[None])
+    resolved_at: datetime | None = Field(examples=[None])
+    closed_at: datetime | None = Field(examples=[None])
+    cancelled_at: datetime | None = Field(examples=[None])
+    merged_into_incident_id: uuid.UUID | None = Field(examples=[None])
     created_at: datetime = Field(examples=["2026-10-15T07:55:41Z"])
     updated_at: datetime = Field(examples=["2026-10-15T07:56:00Z"])
 
@@ -49,6 +54,35 @@ class IncidentView(BaseModel):
             lifecycle_state=IncidentLifecycleState(incident.lifecycle_state),
             declared_at=incident.declared_at,
             declared_by_user_id=incident.declared_by_user_id,
+            mitigated_at=incident.mitigated_at,
+            resolved_at=incident.resolved_at,
+            closed_at=incident.closed_at,
+            cancelled_at=incident.cancelled_at,
+            merged_into_incident_id=incident.merged_into_incident_id,
             created_at=incident.created_at,
             updated_at=incident.updated_at,
         )
+
+
+REASON_MAX_LENGTH = 1000
+TransitionReason = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=REASON_MAX_LENGTH)
+]
+
+
+class TransitionIncidentRequest(BaseModel):
+    """Move an incident through its lifecycle (MPS-8A.09-8A.16, ADR-0004)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    target_state: IncidentLifecycleState = Field(examples=[IncidentLifecycleState.MITIGATING])
+    reason: TransitionReason | None = Field(
+        default=None,
+        description="Required to cancel (false alarm, duplicate) and to reopen.",
+        examples=["Duplicate of the EU card authorisation incident"],
+    )
+    merged_into_incident_id: uuid.UUID | None = Field(
+        default=None,
+        description="Required when target_state is merged; an open incident in this workspace.",
+        examples=["0192f0c4-7d1e-7a3b-9c2d-5e6f7a8b9c0d"],
+    )

@@ -4,7 +4,14 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, String
+from sqlalchemy import (
+    CheckConstraint,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
@@ -48,6 +55,20 @@ class Incident(RecordColumns, Base):
             "lifecycle_state = 'triage' OR declared_at IS NOT NULL",
             name="declared_when_past_triage",
         ),
+        # Target of the composite merge foreign key below.
+        UniqueConstraint("id", "workspace_id", name="uq_incidents_id_workspace_id"),
+        ForeignKeyConstraint(
+            ["merged_into_incident_id", "workspace_id"],
+            ["incidents.id", "incidents.workspace_id"],
+            name="fk_incidents_merged_into_same_workspace",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(lifecycle_state = 'merged') = (merged_into_incident_id IS NOT NULL)",
+            name="merged_has_target",
+        ),
+        CheckConstraint("merged_into_incident_id IS DISTINCT FROM id", name="not_merged_into_self"),
+        Index("ix_incidents_merged_into_incident_id", "merged_into_incident_id"),
         Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
         Index("ix_incidents_organization_id", "organization_id"),
     )
@@ -62,3 +83,9 @@ class Incident(RecordColumns, Base):
     # The "declared" metric timestamp (MPS-8A.20); set when the incident leaves triage.
     declared_at: Mapped[datetime | None]
     declared_by_user_id: Mapped[uuid.UUID | None]
+    # Remaining MPS-8A.20 metric timestamps, set by lifecycle transitions.
+    mitigated_at: Mapped[datetime | None]
+    resolved_at: Mapped[datetime | None]
+    closed_at: Mapped[datetime | None]
+    cancelled_at: Mapped[datetime | None]
+    merged_into_incident_id: Mapped[uuid.UUID | None]

@@ -20,15 +20,17 @@ LICENSE_ID = "0b7e2f64-81c9-4d3a-a5f2-9e4c6d8b1a37"
 
 
 def _cache_entry(status: CommercialStatus, *, retrieved_at: datetime) -> StatusCacheEntry:
-    payload = StatusSnapshotPayload(
-        schema_version=1,
-        license_id=LICENSE_ID,
-        revision=2,
-        customer_id="6f1c3a52-2d4e-4b7a-9c1e-3f5a7b9d0e21",
-        product_id="relyxus",
-        deployment_id="acme-bank-prod-eu",
-        commercial_status=status,
-        effective_at=datetime(2027, 1, 15, 12, 0, tzinfo=UTC),
+    payload = StatusSnapshotPayload.model_validate(
+        {
+            "schema_version": 1,
+            "license_id": LICENSE_ID,
+            "revision": 2,
+            "customer_id": "6f1c3a52-2d4e-4b7a-9c1e-3f5a7b9d0e21",
+            "product_id": "relyxus",
+            "deployment_id": "acme-bank-prod-eu",
+            "commercial_status": status.value,
+            "effective_at": "2027-01-15T12:00:00Z",
+        }
     )
     return StatusCacheEntry(
         snapshot=VerifiedStatusSnapshot(payload=payload, signing_key_id="test-key"),

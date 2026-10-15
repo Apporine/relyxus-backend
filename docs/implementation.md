@@ -294,6 +294,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I9 | `feat/incident-timeline` | Append-only incident timeline written with every audited incident change; `GET /api/v1/incidents/{id}/timeline` (migration 0016) | MPS-5.20 (timeline part), MPS-8A.33, MPS-11.20, MPS-8A.14 | in review |
 | I10 | `feat/incident-timeline-notes` | `POST /api/v1/incidents/{id}/timeline/notes`: immutable human notes on the timeline, audited, idempotent | MPS-11.20, MPS-11.04 (scribe's record), MPS-5.20 | in review |
 | I11 | `feat/incident-acknowledge` | Impact-started, detected, acknowledged timestamps (migration 0017); declare/PATCH reported times with plausibility rules; `POST /api/v1/incidents/{id}/acknowledge` | MPS-8A.20, MPS-15.02 (Acknowledge), MPS-20.12 | in review |
+| I12 | `feat/incident-links` | Incident links (duplicate of, caused by, related to, recurrence of): add/list/remove, one per type per pair, on both timelines (migration 0018) | MPS-8A.31, MPS-20.31 | in review |
 
 ---
 
@@ -423,3 +424,14 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** stopping the escalation chase and syncing to PagerDuty or Opsgenie on acknowledgement (MPS-11.07/11.08); detection from alerts (MPS-20.11); MTTR and time-to-acknowledge in the metric catalogue (MPS-13.18).
 
   **Results:** ruff and mypy strict pass; pytest 436 passed against local PostgreSQL.
+
+- **I12 — 2026-10-15** — Incident links.
+  - **Table `incident_links`** (migration 0018): both ends have composite FKs to incidents of the link's own workspace. No self-links; unique (from, to, type); forced RLS.
+  - **`POST /api/v1/incidents/{id}/links`** (`Idempotency-Key`, incident writers): `duplicate_of`, `caused_by`, `related_to`, `recurrence_of`. Two incidents share at most one link of each type in either direction (409 `INCIDENT_LINK_EXISTS`). Both incidents are locked in ID order, so opposite concurrent links cannot both pass. Targets must be in the same workspace (422 `INCIDENT_LINK_INVALID_TARGET`) but may be in any state; the source must not be closed, cancelled or merged.
+  - **`GET …/links`:** both directions, with `direction` and `other_incident_id`; cursor-paginated. **`DELETE …/links/{link_id}`:** from either end.
+  - Each add or remove is one audit entry and appears on **both** incidents' timelines (`IncidentActivity.also_on_incident_ids`).
+  - "Merged into" stays the merge transition; parent/child waits for major incidents (MPS-8A.30).
+  - **Contract version 0.16.0.**
+  - **Not covered yet:** links in reports (8A.31).
+
+  **Results:** ruff and mypy strict pass; pytest 443 passed against local PostgreSQL.

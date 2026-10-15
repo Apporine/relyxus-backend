@@ -94,6 +94,7 @@ async def declare_incident(
             title=body.title,
             severity=body.severity,
             is_declared=body.is_declared,
+            incident_type_id=body.incident_type_id,
             impact_started_at=body.impact_started_at,
             detected_at=body.detected_at,
             affected_service_ids=tuple(body.affected_service_ids),
@@ -116,7 +117,8 @@ async def declare_incident(
     summary="List incidents",
     description=(
         f"Incidents in the workspace named in `{WORKSPACE_HEADER}`, newest first. Filter by one "
-        "or more `lifecycle_state`, `severity` and `service_id` values (repeat the parameter). "
+        "or more `lifecycle_state`, `severity`, `service_id` and `incident_type_id` values "
+        "(repeat the parameter). "
         "Cursor-paginated; no total is returned."
     ),
     response_model=ListEnvelope[IncidentView],
@@ -127,11 +129,13 @@ async def list_incidents(
     lifecycle_state: Annotated[list[IncidentLifecycleState] | None, Query()] = None,
     severity: Annotated[list[IncidentSeverity] | None, Query()] = None,
     service_id: Annotated[list[uuid.UUID] | None, Query()] = None,
+    incident_type_id: Annotated[list[uuid.UUID] | None, Query()] = None,
 ) -> ListEnvelope[IncidentView]:
     filters = IncidentFilters(
         lifecycle_states=frozenset(lifecycle_state or ()),
         severities=frozenset(severity or ()),
         service_ids=frozenset(service_id or ()),
+        incident_type_ids=frozenset(incident_type_id or ()),
     )
     page = await IncidentService().list(workspace.session, workspace.access, filters, page_request)
     views = [IncidentView.from_incident(incident) for incident in page.items]

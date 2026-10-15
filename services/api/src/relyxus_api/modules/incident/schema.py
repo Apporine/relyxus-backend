@@ -25,7 +25,20 @@ class DeclareIncidentRequest(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     title: IncidentTitle = Field(examples=["Card authorisations failing in EU"])
-    severity: IncidentSeverity = Field(examples=[IncidentSeverity.SEV1])
+    incident_type_id: uuid.UUID | None = Field(
+        default=None,
+        description=(
+            "Required once the workspace has incident types (MPS-8A.08). Supplies the "
+            "default severity and visibility."
+        ),
+    )
+    severity: IncidentSeverity | None = Field(
+        default=None,
+        description=(
+            "Required without a type; with a type, defaults to the type's and must be allowed."
+        ),
+        examples=[IncidentSeverity.SEV1],
+    )
     is_declared: bool = Field(
         default=True,
         description="False saves a draft that stays in triage instead of declaring it.",
@@ -46,10 +59,11 @@ class DeclareIncidentRequest(BaseModel):
         max_length=50,
         description="Active services of this workspace the incident affects (MPS-8A.08).",
     )
-    visibility: IncidentVisibility = Field(
-        default=IncidentVisibility.WORKSPACE,
+    visibility: IncidentVisibility | None = Field(
+        default=None,
         description=(
-            "Who can see the incident (MPS-8A.23). Anything but `workspace` hides it from "
+            "Who can see the incident (MPS-8A.23); defaults to the type's, else `workspace`. "
+            "Anything but `workspace` hides it from "
             "everyone except owners, its creator and role holders, and granted people."
         ),
     )
@@ -67,6 +81,10 @@ class IncidentView(BaseModel):
     title: str = Field(examples=["Card authorisations failing in EU"])
     severity: IncidentSeverity = Field(examples=[IncidentSeverity.SEV1])
     visibility: IncidentVisibility = Field(examples=[IncidentVisibility.WORKSPACE])
+    incident_type_id: uuid.UUID | None = Field(examples=[None])
+    incident_type_version: int | None = Field(
+        description="The type's configuration version at declaration.", examples=[None]
+    )
     lifecycle_state: IncidentLifecycleState = Field(examples=[IncidentLifecycleState.INVESTIGATING])
     impact_started_at: datetime | None = Field(examples=["2026-10-15T07:41:00Z"])
     detected_at: datetime | None = Field(examples=["2026-10-15T07:50:00Z"])
@@ -101,6 +119,8 @@ class IncidentView(BaseModel):
             title=incident.title,
             severity=IncidentSeverity(incident.severity),
             visibility=IncidentVisibility(incident.visibility),
+            incident_type_id=incident.incident_type_id,
+            incident_type_version=incident.incident_type_version,
             lifecycle_state=IncidentLifecycleState(incident.lifecycle_state),
             impact_started_at=incident.impact_started_at,
             detected_at=incident.detected_at,

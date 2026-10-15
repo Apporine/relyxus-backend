@@ -326,6 +326,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 |---|---|---|---|---|
 | V1 | `feat/configuration-versions` | Append-only configuration versions (who, when, source, snapshot, difference) for teams and services; read API (migration 0029) | MPS-14A.07, MPS-20.29, MPS-8A.06 (mechanism) | in review |
 | V2 | `feat/incident-types` | Incident types: create/list/get/update/archive, versioned via configuration versions; install the nine MPS-8A.02 defaults (migration 0030) | MPS-8A.01 (partial), MPS-8A.02, MPS-8A.06, MPS-20.26 (partial) | in review |
+| V3 | `feat/incident-declare-type` | Declare under an incident type: type required once the workspace has types, defaults severity/visibility, allowed severities enforced (also on later changes, per declared type version), list filter by type (migration 0031) | MPS-8A.08 (type), MPS-8A.06 (incident keeps its version), MPS-20.12 | in review |
 
 ---
 
@@ -704,3 +705,19 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Communication defaults.
 
   **Results:** ruff and mypy strict pass; pytest 545 passed against local PostgreSQL.
+
+- **V3 — 2026-10-15** — Declaring under a type.
+  - **Migration 0031:** `incidents.incident_type_id` (composite FK to the same workspace's types) and `incident_type_version`; a CHECK that both or neither are set; index.
+  - **Declare:**
+    - Accepts `incident_type_id`; `severity` and `visibility` become optional.
+    - A type is required once the workspace has an active one (422 `INCIDENT_TYPE_REQUIRED`; register **Q-44**, provisional).
+    - Without a type, a severity is required (422 `INCIDENT_SEVERITY_REQUIRED`).
+    - Archived or unknown types are refused (422 `INCIDENT_TYPE_INVALID`).
+    - The type supplies the default severity and visibility; severity must be allowed (422 `INCIDENT_SEVERITY_NOT_ALLOWED`).
+    - The incident stores the type version; the audit and timeline entry includes it.
+  - **PATCH severity** is checked against the allowed severities of the type version the incident was declared under, read from its configuration version. Later type edits never change it (MPS-8A.06).
+  - **`GET /incidents?incident_type_id=…`** filter.
+  - **Contract version 0.30.0.**
+  - **Not covered yet:** changing an incident's type; type-driven required fields (V4/V5); SEV1 automations (MPS-8A.19).
+
+  **Results:** ruff and mypy strict pass; pytest 551 passed against local PostgreSQL.

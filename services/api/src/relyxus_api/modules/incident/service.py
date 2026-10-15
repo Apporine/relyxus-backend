@@ -28,6 +28,8 @@ from relyxus_api.modules.incident.reported_times import (
     validate_reported_times,
 )
 from relyxus_api.modules.incident.repository import IncidentListQuery, IncidentRepository
+from relyxus_api.modules.incident.type_repository import IncidentTypeRepository
+from relyxus_api.modules.incident.type_rules import resolve_declaration
 from relyxus_api.shared.errors.app_errors import NotFoundError
 from relyxus_api.shared.http.pagination import InvalidCursorError, Page, PageRequest, build_page
 from relyxus_api.shared.utils.ids import new_uuid7
@@ -48,18 +50,22 @@ class IncidentFilters:
     lifecycle_states: frozenset[IncidentLifecycleState] = frozenset()
     severities: frozenset[IncidentSeverity] = frozenset()
     service_ids: frozenset[uuid.UUID] = frozenset()
+    incident_type_ids: frozenset[uuid.UUID] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
 class NewIncident:
+    """`None` severity or visibility means "not given": the type's default applies."""
+
     title: str
-    severity: IncidentSeverity
+    severity: IncidentSeverity | None
     is_declared: bool
     impact_started_at: datetime | None = None
     # Defaults to the moment the incident is reported in Relyxus.
     detected_at: datetime | None = None
     affected_service_ids: tuple[uuid.UUID, ...] = ()
-    visibility: IncidentVisibility = IncidentVisibility.WORKSPACE
+    visibility: IncidentVisibility | None = None
+    incident_type_id: uuid.UUID | None = None
 
 
 class IncidentService:
@@ -74,6 +80,7 @@ class IncidentService:
         self._activity = activity or IncidentActivityRecorder()
         self._catalog = catalog or CatalogRepository()
         self._affected_services = affected_services or AffectedServiceRepository()
+        self._types = IncidentTypeRepository()
 
     async def create(
         self, session: AsyncSession, access: WorkspaceAccess, new_incident: NewIncident
@@ -84,6 +91,14 @@ class IncidentService:
         validate_reported_times(new_incident.impact_started_at, detected_at, now)
         service_ids = tuple(dict.fromkeys(new_incident.affected_service_ids))
         await require_linkable_services(session, self._catalog, access.workspace_id, service_ids)
+        declaration = await resolve_declaration(
+            session,
+            self._types,
+            access.workspace_id,
+            new_incident.incident_type_id,
+            new_incident.severity,
+            new_incident.visibility,
+        )
         target_state = IncidentLifecycleState.TRIAGE
         declared_at: datetime | None = None
         if new_incident.is_declared:
@@ -100,12 +115,14 @@ class IncidentService:
                 organization_id=access.organization_id,
                 workspace_id=access.workspace_id,
                 lifecycle_state=target_state.value,
-                severity=new_incident.severity.value,
+                severity=declaration.severity.value,
+                incident_type_id=declaration.type_id,
+                incident_type_version=declaration.type_version,
                 title=new_incident.title,
                 declared_at=declared_at,
                 declared_by_user_id=access.user_id if new_incident.is_declared else None,
                 impact_started_at=new_incident.impact_started_at,
-                visibility=new_incident.visibility.value,
+                visibility=declaration.visibility.value,
                 created_by_user_id=access.user_id,
                 detected_at=detected_at,
             ),
@@ -126,7 +143,8 @@ class IncidentService:
                     "impact_started_at": isoformat_or_none(incident.impact_started_at),
                     "detected_at": isoformat_or_none(incident.detected_at),
                     **_service_ids_state(service_ids),
-                    **_visibility_state(new_incident.visibility),
+                    **_visibility_state(declaration.visibility),
+                    **_type_state(declaration.type_id, declaration.type_version),
                 },
             ),
         )
@@ -169,6 +187,7 @@ class IncidentService:
                 lifecycle_states={state.value for state in filters.lifecycle_states},
                 severities={severity.value for severity in filters.severities},
                 service_ids=filters.service_ids,
+                incident_type_ids=filters.incident_type_ids,
             ),
             before_id=_decode_incident_cursor(page_request),
             limit=page_request.limit + 1,
@@ -181,6 +200,13 @@ def _service_ids_state(service_ids: tuple[uuid.UUID, ...]) -> dict[str, object]:
     if not service_ids:
         return {}
     return {"affected_service_ids": [str(service_id) for service_id in service_ids]}
+
+
+def _type_state(type_id: uuid.UUID | None, type_version: int | None) -> dict[str, object]:
+    """Only present when declared under a type, so earlier audit shapes stay unchanged."""
+    if type_id is None:
+        return {}
+    return {"incident_type_id": str(type_id), "incident_type_version": type_version}
 
 
 def _visibility_state(visibility: IncidentVisibility) -> dict[str, object]:

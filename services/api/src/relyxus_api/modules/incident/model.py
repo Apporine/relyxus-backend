@@ -92,6 +92,17 @@ class Incident(RecordColumns, Base):
         CheckConstraint(
             "lifecycle_state <> 'closed' OR closed_at IS NOT NULL", name="closed_has_time"
         ),
+        ForeignKeyConstraint(
+            ["incident_type_id", "workspace_id"],
+            ["incident_types.id", "incident_types.workspace_id"],
+            name="fk_incidents_incident_type_same_workspace",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(incident_type_id IS NULL) = (incident_type_version IS NULL)",
+            name="type_has_version",
+        ),
+        Index("ix_incidents_incident_type_id", "incident_type_id"),
         Index("ix_incidents_merged_into_incident_id", "merged_into_incident_id"),
         Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
         Index("ix_incidents_organization_id", "organization_id"),
@@ -110,6 +121,9 @@ class Incident(RecordColumns, Base):
     visibility: Mapped[str] = mapped_column(
         String(16), default=IncidentVisibility.WORKSPACE.value, server_default="workspace"
     )
+    # The type and its configuration version at declaration (MPS-8A.06, MPS-20.12).
+    incident_type_id: Mapped[uuid.UUID | None]
+    incident_type_version: Mapped[int | None]
     # Who created the record (declared or drafted); NULL for rows created before 0028.
     created_by_user_id: Mapped[uuid.UUID | None]
     # Reported by people (or, later, alerts): when impact began and when it was noticed.

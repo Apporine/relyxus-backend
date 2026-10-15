@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.incident.type_model import IncidentType
@@ -24,6 +24,16 @@ class IncidentTypeRepository:
             )
         )
         return found
+
+    async def has_active(self, session: AsyncSession, workspace_id: uuid.UUID) -> bool:
+        found = await session.scalar(
+            select(
+                exists().where(
+                    IncidentType.workspace_id == workspace_id, IncidentType.archived_at.is_(None)
+                )
+            )
+        )
+        return bool(found)
 
     async def find_in_workspace(
         self,

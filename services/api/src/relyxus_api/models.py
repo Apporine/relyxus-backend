@@ -2,6 +2,7 @@
 
 from relyxus_api.modules.access.model import User, WorkspaceMembership
 from relyxus_api.modules.audit.model import AuditEvent
+from relyxus_api.modules.catalog.model import CatalogService
 from relyxus_api.modules.idempotency.model import IdempotencyRecord
 from relyxus_api.modules.incident.follow_up_model import IncidentFollowUp
 from relyxus_api.modules.incident.handoff_model import IncidentRoleHandoff
@@ -18,6 +19,7 @@ from relyxus_api.modules.tenancy.model import Organization, Workspace
 
 __all__ = [
     "AuditEvent",
+    "CatalogService",
     "IdempotencyRecord",
     "Incident",
     "IncidentFollowUp",

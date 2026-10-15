@@ -312,6 +312,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 |---|---|---|---|---|
 | C1 | `feat/teams` | Teams and team members: create/list/get/rename, add/remove members (owners and admins), audited (migration 0024) | MPS-14.01, MPS-14.02 (admin manages teams), MPS-20.05 (partial) | in review |
 | C2 | `feat/team-role-grants` | Team role grants unioned into workspace access (direct members only); grant/revoke by owners; RLS widened to own team rows (migration 0025) | Q-18 (ADR-0003 §6), MPS-14.01 "permissions follow team", MPS-20.06 (partial) | in review |
+| C3 | `feat/services` | Service catalogue: create/list/get/update/archive services with tier, environment, owner team, labels (migration 0026) | MPS-20.08 (partial), MPS-14.01 | in review |
 
 ---
 
@@ -583,3 +584,28 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - `GET /me/workspaces` still lists direct roles only.
 
   **Results:** ruff and mypy strict pass; pytest 501 passed against local PostgreSQL. The new RLS probe checks that a user sees only their own team memberships and grants.
+
+- **C3 — 2026-10-15** — Service catalogue.
+  - **Table `services`** (migration 0026):
+    - Key unique per workspace (stable ID).
+    - Tier `tier_1`–`tier_4` and a lowercase environment key (register **Q-41**, provisional).
+    - Optional owner team (composite FK, so it must be the same workspace's team); labels as a JSON object; `archived_at`.
+    - Forced RLS.
+  - **Endpoints:**
+    - `POST /api/v1/services` (`Idempotency-Key`)
+    - `GET /services` (filters `owner_team_id`, repeatable `tier`, `include_archived`; cursor-paginated)
+    - `GET /services/{id}` (ETag)
+    - `PATCH /services/{id}` (partial; labels replace the whole set; `is_archived` archives or restores; `If-Match`)
+  - **Rules:**
+    - Owners and admins change services; every member reads them.
+    - Labels: up to 50; key pattern enforced; values ≤ 200 characters.
+    - Audited (`service.created` / `service.updated`).
+  - The code calls the entity `CatalogService` and the layer `ServiceCatalog`, so "service" is never ambiguous.
+  - **Contract version 0.25.0.**
+  - **Not covered yet:**
+    - SLOs.
+    - Dependencies (MPS-20.09).
+    - Business services (MPS-20.10).
+    - Catalogue import and source priority (MPS-7.24).
+
+  **Results:** ruff and mypy strict pass; pytest 513 passed against local PostgreSQL.

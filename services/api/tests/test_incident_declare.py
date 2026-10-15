@@ -158,10 +158,14 @@ def test_declaration_is_audited_in_the_same_chain(client: TestClient, database_u
         "incident",
         AMIRA,
     )
+    assert event.after_state is not None
+    assert event.after_state["detected_at"] is not None
     assert event.after_state == {
         "lifecycle_state": "investigating",
         "severity": "sev2",
         "title": "Payments latency",
+        "impact_started_at": None,
+        "detected_at": event.after_state["detected_at"],
     }
     assert verify_events(chain) == []
 

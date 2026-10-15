@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
 from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceDependency
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
+from relyxus_api.modules.incident.acknowledge_service import IncidentAcknowledgeService
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
 from relyxus_api.modules.incident.role_model import IncidentRole
@@ -84,7 +85,13 @@ async def declare_incident(
     incident = await IncidentService().create(
         workspace.session,
         workspace.access,
-        NewIncident(title=body.title, severity=body.severity, is_declared=body.is_declared),
+        NewIncident(
+            title=body.title,
+            severity=body.severity,
+            is_declared=body.is_declared,
+            impact_started_at=body.impact_started_at,
+            detected_at=body.detected_at,
+        ),
     )
     payload = _incident_body(incident)
     await idempotency.complete(
@@ -193,11 +200,13 @@ async def transition_incident(
 
 @router.patch(
     "/incidents/{incident_id}",
-    summary="Change an incident's title or severity",
+    summary="Change an incident's title, severity or reported times",
     description=(
         "Partial update of an open incident. Changing severity needs a `reason` (a human "
-        "override, MPS-8.06). Optional `If-Match` returns 412 if the incident changed since "
-        "it was read. Recorded in the workspace audit chain in the same transaction. "
+        "override, MPS-8.06). `impact_started_at` and `detected_at` can be corrected; neither "
+        "may be in the future and impact cannot start after detection. Optional `If-Match` "
+        "returns 412 if the incident changed since it was read. Recorded in the workspace "
+        "audit chain and the timeline in the same transaction. "
         "Requires the owner, admin, incident commander or responder role."
     ),
     response_model=SuccessEnvelope[IncidentView],
@@ -217,9 +226,50 @@ async def update_incident(
             severity=body.severity,
             reason=body.reason,
             if_match=if_match,
+            impact_started_at=body.impact_started_at,
+            detected_at=body.detected_at,
         ),
     )
     return JSONResponse(content=_incident_body(incident), headers=_etag_headers(incident))
+
+
+@router.post(
+    "/incidents/{incident_id}/acknowledge",
+    summary="Acknowledge an incident",
+    description=(
+        "Records the first acknowledgement (who and when) for time-to-acknowledge "
+        "(MPS-8A.20). Allowed from triage to monitoring; a second acknowledgement returns 409. "
+        "On the timeline and in the audit chain. Requires "
+        f"`{IDEMPOTENCY_HEADER}` and an incident-writing role."
+    ),
+    response_model=SuccessEnvelope[IncidentView],
+)
+async def acknowledge_incident(
+    request: Request,
+    incident_id: uuid.UUID,
+    workspace: IncidentWriteWorkspaceDependency,
+    idempotency_key: Annotated[str, Header(alias=IDEMPOTENCY_HEADER)],
+) -> Response:
+    idempotency = IdempotencyService()
+    reservation = await idempotency.begin(
+        workspace.session,
+        organization_id=workspace.access.organization_id,
+        idempotency_key=idempotency_key,
+        method=request.method,
+        path=request.url.path,
+        payload={},
+    )
+    if isinstance(reservation, IdempotencyReplay):
+        return JSONResponse(status_code=reservation.status_code, content=reservation.body)
+
+    incident = await IncidentAcknowledgeService().acknowledge(
+        workspace.session, workspace.access, incident_id
+    )
+    payload = _incident_body(incident)
+    await idempotency.complete(
+        workspace.session, reservation.record_id, status_code=OK_STATUS, body=payload
+    )
+    return JSONResponse(content=payload, headers=_etag_headers(incident))
 
 
 @router.get(

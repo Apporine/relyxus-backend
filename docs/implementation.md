@@ -293,6 +293,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I8 | `feat/incident-tasks` | Live incident tasks: create, list, update (status, owner, due, priority), audited, frozen with incident (migration 0015) | MPS-11.14–11.22, MPS-20.32 | in review |
 | I9 | `feat/incident-timeline` | Append-only incident timeline written with every audited incident change; `GET /api/v1/incidents/{id}/timeline` (migration 0016) | MPS-5.20 (timeline part), MPS-8A.33, MPS-11.20, MPS-8A.14 | in review |
 | I10 | `feat/incident-timeline-notes` | `POST /api/v1/incidents/{id}/timeline/notes`: immutable human notes on the timeline, audited, idempotent | MPS-11.20, MPS-11.04 (scribe's record), MPS-5.20 | in review |
+| I11 | `feat/incident-acknowledge` | Impact-started, detected, acknowledged timestamps (migration 0017); declare/PATCH reported times with plausibility rules; `POST /api/v1/incidents/{id}/acknowledge` | MPS-8A.20, MPS-15.02 (Acknowledge), MPS-20.12 | in review |
 
 ---
 
@@ -412,3 +413,13 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** letting the incident's assigned scribe write notes when their workspace role is viewer; attachments and evidence links on notes.
 
   **Results:** ruff and mypy strict pass; pytest 427 passed against local PostgreSQL.
+
+- **I11 — 2026-10-15** — Reported times and acknowledgement.
+  - **Migration 0017:** `impact_started_at`, `detected_at`, `acknowledged_at`, `acknowledged_by_user_id`. CHECKs: impact never after detection; an acknowledgement always names its actor. Existing incidents keep NULL (unknown); nothing is backfilled or invented.
+  - **Declare** accepts optional `impact_started_at` and `detected_at` (time-zone-aware). `detected_at` defaults to the time of the request.
+  - **PATCH** can correct both times. Neither may be more than one minute in the future (`INCIDENT_TIMESTAMP_IN_FUTURE`), and impact cannot start after detection (`INCIDENT_IMPACT_AFTER_DETECTION`). Changes are audited and on the timeline in UTC.
+  - **`POST /api/v1/incidents/{id}/acknowledge`** (`Idempotency-Key`, incident-writing roles): records the first acknowledgement, from triage to monitoring. A second one returns 409 `INCIDENT_ALREADY_ACKNOWLEDGED`; resolved or terminal incidents return 409 `INCIDENT_NOT_ACKNOWLEDGEABLE`.
+  - **Contract version 0.15.0.** (I10 bumped to 0.14.0 in a follow-up commit on its PR.)
+  - **Not covered yet:** stopping the escalation chase and syncing to PagerDuty or Opsgenie on acknowledgement (MPS-11.07/11.08); detection from alerts (MPS-20.11); MTTR and time-to-acknowledge in the metric catalogue (MPS-13.18).
+
+  **Results:** ruff and mypy strict pass; pytest 436 passed against local PostgreSQL.

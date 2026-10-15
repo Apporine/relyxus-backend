@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.modules.incident.model import TITLE_MAX_LENGTH, Incident, IncidentSeverity
@@ -25,6 +25,16 @@ class DeclareIncidentRequest(BaseModel):
         description="False saves a draft that stays in triage instead of declaring it.",
         examples=[True],
     )
+    impact_started_at: AwareDatetime | None = Field(
+        default=None,
+        description="When customer or business impact began, if known. Not after detected_at.",
+        examples=["2026-10-15T07:41:00Z"],
+    )
+    detected_at: AwareDatetime | None = Field(
+        default=None,
+        description="When the problem was noticed; defaults to the time of this request.",
+        examples=["2026-10-15T07:50:00Z"],
+    )
 
 
 class IncidentView(BaseModel):
@@ -39,6 +49,12 @@ class IncidentView(BaseModel):
     title: str = Field(examples=["Card authorisations failing in EU"])
     severity: IncidentSeverity = Field(examples=[IncidentSeverity.SEV1])
     lifecycle_state: IncidentLifecycleState = Field(examples=[IncidentLifecycleState.INVESTIGATING])
+    impact_started_at: datetime | None = Field(examples=["2026-10-15T07:41:00Z"])
+    detected_at: datetime | None = Field(examples=["2026-10-15T07:50:00Z"])
+    acknowledged_at: datetime | None = Field(examples=["2026-10-15T07:52:00Z"])
+    acknowledged_by_user_id: uuid.UUID | None = Field(
+        examples=["0192f0c4-0000-7000-8000-0000000000f1"]
+    )
     declared_at: datetime | None = Field(examples=["2026-10-15T07:56:00Z"])
     declared_by_user_id: uuid.UUID | None = Field(examples=["0192f0c4-0000-7000-8000-0000000000f1"])
     mitigated_at: datetime | None = Field(examples=[None])
@@ -58,6 +74,10 @@ class IncidentView(BaseModel):
             title=incident.title,
             severity=IncidentSeverity(incident.severity),
             lifecycle_state=IncidentLifecycleState(incident.lifecycle_state),
+            impact_started_at=incident.impact_started_at,
+            detected_at=incident.detected_at,
+            acknowledged_at=incident.acknowledged_at,
+            acknowledged_by_user_id=incident.acknowledged_by_user_id,
             declared_at=incident.declared_at,
             declared_by_user_id=incident.declared_by_user_id,
             mitigated_at=incident.mitigated_at,
@@ -95,7 +115,7 @@ class TransitionIncidentRequest(BaseModel):
 
 
 class UpdateIncidentRequest(BaseModel):
-    """Change an open incident's title and/or severity (MPS-8.06)."""
+    """Change an open incident's title, severity or reported times (MPS-8.06, MPS-8A.20)."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -107,6 +127,14 @@ class UpdateIncidentRequest(BaseModel):
         default=None,
         description="Required when severity changes (human override, MPS-8.06).",
         examples=["Failed payments now above 500 a minute"],
+    )
+    impact_started_at: AwareDatetime | None = Field(
+        default=None,
+        description="Corrected start of impact. Not in the future, not after detected_at.",
+        examples=["2026-10-15T07:38:00Z"],
+    )
+    detected_at: AwareDatetime | None = Field(
+        default=None, description="Corrected detection time.", examples=["2026-10-15T07:49:00Z"]
     )
 
 

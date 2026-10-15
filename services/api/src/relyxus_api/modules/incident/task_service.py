@@ -2,10 +2,11 @@
 
 Tasks follow their incident: they are only reachable through an incident visible in the
 open workspace (MPS-11.22), and tasks of a closed, cancelled or merged incident are frozen.
-Owners must be workspace members. Every change is audited in the same transaction.
+Owners must be workspace members. Every change is audited and put on the incident
+timeline (11.20) in the same transaction.
 
-Not yet: dependencies and links (11.17-11.18), overdue alerts (11.16), timeline events
-(11.20), and converting open tasks to follow-ups at resolution (11.21).
+Not yet: dependencies and links (11.17-11.18), overdue alerts (11.16), and converting open
+tasks to follow-ups at resolution (11.21).
 """
 
 import uuid
@@ -17,8 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessService
-from relyxus_api.modules.audit.model import ActorType, AuditOutcome
-from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
+from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
 from relyxus_api.modules.incident.lifecycle import TERMINAL_LIFECYCLE_STATES, IncidentLifecycleState
 from relyxus_api.modules.incident.repository import IncidentRepository
 from relyxus_api.modules.incident.service import IncidentNotFoundError
@@ -35,7 +35,6 @@ from relyxus_api.shared.errors.app_errors import ConflictError, NotFoundError, V
 from relyxus_api.shared.http.etag import format_weak_etag
 from relyxus_api.shared.http.pagination import InvalidCursorError, Page, PageRequest, build_page
 from relyxus_api.shared.http.preconditions import assert_if_match
-from relyxus_api.shared.observability.correlation import get_correlation_id
 from relyxus_api.shared.utils.ids import new_uuid7
 
 TASK_TARGET_TYPE = "incident_task"
@@ -90,12 +89,12 @@ class IncidentTaskService:
         self,
         tasks: IncidentTaskRepository | None = None,
         incidents: IncidentRepository | None = None,
-        audit: AuditService | None = None,
+        activity: IncidentActivityRecorder | None = None,
         access: WorkspaceAccessService | None = None,
     ) -> None:
         self._tasks = tasks or IncidentTaskRepository()
         self._incidents = incidents or IncidentRepository()
-        self._audit = audit or AuditService()
+        self._activity = activity or IncidentActivityRecorder()
         self._access = access or WorkspaceAccessService(AccessRepository())
 
     async def create(
@@ -230,21 +229,16 @@ class IncidentTaskService:
         before: dict[str, object] | None,
         after: dict[str, object],
     ) -> None:
-        await self._audit.append(
+        await self._activity.record(
             session,
-            NewAuditEvent(
-                organization_id=access.organization_id,
-                workspace_id=access.workspace_id,
-                actor_type=ActorType.USER,
-                actor_user_id=access.user_id,
-                effective_user_id=None,
+            access,
+            IncidentActivity(
+                incident_id=task.incident_id,
                 action=action,
-                target_type=TASK_TARGET_TYPE,
-                target_id=str(task.id),
-                outcome=AuditOutcome.SUCCEEDED,
-                before_state=before,
-                after_state=after,
-                correlation_id=get_correlation_id(),
+                subject_type=TASK_TARGET_TYPE,
+                subject_id=task.id,
+                before=before,
+                after=after,
             ),
         )
 

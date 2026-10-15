@@ -9,11 +9,16 @@ from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceS
 from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceDependency
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
 from relyxus_api.modules.incident.acknowledge_service import IncidentAcknowledgeService
+from relyxus_api.modules.incident.affected_services_service import (
+    AffectedService,
+    AffectedServicesService,
+)
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
 from relyxus_api.modules.incident.role_model import IncidentRole
 from relyxus_api.modules.incident.role_service import IncidentRoleService
 from relyxus_api.modules.incident.schema import (
+    AffectedServiceView,
     AssignIncidentRoleRequest,
     DeclareIncidentRequest,
     IncidentRoleView,
@@ -91,6 +96,7 @@ async def declare_incident(
             is_declared=body.is_declared,
             impact_started_at=body.impact_started_at,
             detected_at=body.detected_at,
+            affected_service_ids=tuple(body.affected_service_ids),
         ),
     )
     payload = _incident_body(incident)
@@ -109,7 +115,7 @@ async def declare_incident(
     summary="List incidents",
     description=(
         f"Incidents in the workspace named in `{WORKSPACE_HEADER}`, newest first. Filter by one "
-        "or more `lifecycle_state` and `severity` values (repeat the parameter). "
+        "or more `lifecycle_state`, `severity` and `service_id` values (repeat the parameter). "
         "Cursor-paginated; no total is returned."
     ),
     response_model=ListEnvelope[IncidentView],
@@ -119,9 +125,12 @@ async def list_incidents(
     page_request: PageRequestDependency,
     lifecycle_state: Annotated[list[IncidentLifecycleState] | None, Query()] = None,
     severity: Annotated[list[IncidentSeverity] | None, Query()] = None,
+    service_id: Annotated[list[uuid.UUID] | None, Query()] = None,
 ) -> ListEnvelope[IncidentView]:
     filters = IncidentFilters(
-        lifecycle_states=frozenset(lifecycle_state or ()), severities=frozenset(severity or ())
+        lifecycle_states=frozenset(lifecycle_state or ()),
+        severities=frozenset(severity or ()),
+        service_ids=frozenset(service_id or ()),
     )
     page = await IncidentService().list(workspace.session, workspace.access, filters, page_request)
     views = [IncidentView.from_incident(incident) for incident in page.items]
@@ -324,4 +333,61 @@ async def unassign_incident_role(
     incident_id: uuid.UUID, role: IncidentRole, workspace: WorkspaceSessionDependency
 ) -> Response:
     await IncidentRoleService().unassign(workspace.session, workspace.access, incident_id, role)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _affected_view(item: AffectedService) -> AffectedServiceView:
+    return AffectedServiceView(
+        service_id=item.service.id,
+        key=item.service.key,
+        name=item.service.name,
+        tier=item.service.tier,
+        added_by_user_id=item.link.added_by_user_id,
+        added_at=item.link.created_at,
+    )
+
+
+@router.get(
+    "/incidents/{incident_id}/services",
+    summary="List the services an incident affects",
+    description="At most 50 services, in the order they were added.",
+    response_model=SuccessEnvelope[list[AffectedServiceView]],
+)
+async def list_affected_services(
+    incident_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> SuccessEnvelope[list[AffectedServiceView]]:
+    items = await AffectedServicesService().list(workspace.session, workspace.access, incident_id)
+    return wrap_success([_affected_view(item) for item in items])
+
+
+@router.put(
+    "/incidents/{incident_id}/services/{service_id}",
+    summary="Add an affected service",
+    description=(
+        "Names an active service of this workspace as affected (MPS-8A.08). Idempotent. Not "
+        "allowed once the incident is closed, cancelled or merged. Incident-writing roles."
+    ),
+    response_model=SuccessEnvelope[AffectedServiceView],
+)
+async def add_affected_service(
+    incident_id: uuid.UUID, service_id: uuid.UUID, workspace: IncidentWriteWorkspaceDependency
+) -> SuccessEnvelope[AffectedServiceView]:
+    item = await AffectedServicesService().add(
+        workspace.session, workspace.access, incident_id, service_id
+    )
+    return wrap_success(_affected_view(item))
+
+
+@router.delete(
+    "/incidents/{incident_id}/services/{service_id}",
+    summary="Remove an affected service",
+    description="404 if the service is not listed. Incident-writing roles.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_affected_service(
+    incident_id: uuid.UUID, service_id: uuid.UUID, workspace: IncidentWriteWorkspaceDependency
+) -> Response:
+    await AffectedServicesService().remove(
+        workspace.session, workspace.access, incident_id, service_id
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

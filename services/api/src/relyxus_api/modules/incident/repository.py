@@ -2,13 +2,24 @@
 
 import uuid
 from collections.abc import Collection
+from dataclasses import dataclass
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from relyxus_api.modules.incident.affected_service_model import IncidentAffectedService
 from relyxus_api.modules.incident.model import Incident
 
 _NUMBER_LOCK = text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
+
+
+@dataclass(frozen=True, slots=True)
+class IncidentListQuery:
+    """Empty collections mean "any"."""
+
+    lifecycle_states: Collection[str] = ()
+    severities: Collection[str] = ()
+    service_ids: Collection[uuid.UUID] = ()
 
 
 class IncidentRepository:
@@ -60,17 +71,25 @@ class IncidentRepository:
         self,
         session: AsyncSession,
         workspace_id: uuid.UUID,
-        lifecycle_states: Collection[str],
-        severities: Collection[str],
+        filters: IncidentListQuery,
         before_id: uuid.UUID | None,
         limit: int,
     ) -> list[Incident]:
         """Newest first (UUIDv7 IDs sort by creation time); keyset page before `before_id`."""
         query = select(Incident).where(Incident.workspace_id == workspace_id)
-        if lifecycle_states:
-            query = query.where(Incident.lifecycle_state.in_(lifecycle_states))
-        if severities:
-            query = query.where(Incident.severity.in_(severities))
+        if filters.lifecycle_states:
+            query = query.where(Incident.lifecycle_state.in_(filters.lifecycle_states))
+        if filters.severities:
+            query = query.where(Incident.severity.in_(filters.severities))
+        if filters.service_ids:
+            query = query.where(
+                select(IncidentAffectedService.id)
+                .where(
+                    IncidentAffectedService.incident_id == Incident.id,
+                    IncidentAffectedService.service_id.in_(filters.service_ids),
+                )
+                .exists()
+            )
         if before_id is not None:
             query = query.where(Incident.id < before_id)
         incidents = await session.scalars(query.order_by(Incident.id.desc()).limit(limit))

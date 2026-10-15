@@ -313,6 +313,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | C1 | `feat/teams` | Teams and team members: create/list/get/rename, add/remove members (owners and admins), audited (migration 0024) | MPS-14.01, MPS-14.02 (admin manages teams), MPS-20.05 (partial) | in review |
 | C2 | `feat/team-role-grants` | Team role grants unioned into workspace access (direct members only); grant/revoke by owners; RLS widened to own team rows (migration 0025) | Q-18 (ADR-0003 §6), MPS-14.01 "permissions follow team", MPS-20.06 (partial) | in review |
 | C3 | `feat/services` | Service catalogue: create/list/get/update/archive services with tier, environment, owner team, labels (migration 0026) | MPS-20.08 (partial), MPS-14.01 | in review |
+| C4 | `feat/incident-services` | Affected services on incidents: at declaration and later (add/remove), list incidents by service, on timeline (migration 0027) | MPS-8A.08 (affected service, not yet required), MPS-20.12, MPS-15.02 (filter by service) | in review |
 
 ---
 
@@ -609,3 +610,15 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Catalogue import and source priority (MPS-7.24).
 
   **Results:** ruff and mypy strict pass; pytest 513 passed against local PostgreSQL.
+
+- **C4 — 2026-10-15** — Affected services on incidents.
+  - **Table `incident_affected_services`** (migration 0027): composite FKs to the incident and service of the same workspace; one row per pair; index on `service_id`; forced RLS.
+  - **Declare** accepts `affected_service_ids` (≤ 50; duplicates collapse). Each must be an active service of the workspace (422 `INCIDENT_AFFECTED_SERVICE_INVALID`). The IDs go into the `incident.declared` audit and timeline entry only when present.
+  - **Endpoints:**
+    - `GET /api/v1/incidents/{id}/services`
+    - `PUT` / `DELETE …/services/{service_id}`: incident writers; idempotent add; refused once closed, cancelled or merged; on the timeline as `incident.service_added` / `incident.service_removed`.
+  - **`GET /incidents?service_id=…`** (repeatable) filters by affected service via an EXISTS subquery. The repository list now takes an `IncidentListQuery`.
+  - **Contract version 0.26.0.**
+  - **Not covered yet:** making an affected service *required* at declaration (MPS-8A.08). It stays optional so workspaces without a catalogue can still declare; that waits for incident types (required fields per type).
+
+  **Results:** ruff and mypy strict pass; pytest 519 passed against local PostgreSQL.

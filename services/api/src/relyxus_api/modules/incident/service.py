@@ -13,7 +13,11 @@ from typing import ClassVar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.access.service import WorkspaceAccess
+from relyxus_api.modules.catalog.repository import CatalogRepository
 from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
+from relyxus_api.modules.incident.affected_service_model import IncidentAffectedService
+from relyxus_api.modules.incident.affected_service_repository import AffectedServiceRepository
+from relyxus_api.modules.incident.affected_service_rules import require_linkable_services
 from relyxus_api.modules.incident.lifecycle import (
     IncidentLifecycleState,
     validate_lifecycle_transition,
@@ -23,7 +27,7 @@ from relyxus_api.modules.incident.reported_times import (
     isoformat_or_none,
     validate_reported_times,
 )
-from relyxus_api.modules.incident.repository import IncidentRepository
+from relyxus_api.modules.incident.repository import IncidentListQuery, IncidentRepository
 from relyxus_api.shared.errors.app_errors import NotFoundError
 from relyxus_api.shared.http.pagination import InvalidCursorError, Page, PageRequest, build_page
 from relyxus_api.shared.utils.ids import new_uuid7
@@ -43,6 +47,7 @@ class IncidentFilters:
 
     lifecycle_states: frozenset[IncidentLifecycleState] = frozenset()
     severities: frozenset[IncidentSeverity] = frozenset()
+    service_ids: frozenset[uuid.UUID] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +58,7 @@ class NewIncident:
     impact_started_at: datetime | None = None
     # Defaults to the moment the incident is reported in Relyxus.
     detected_at: datetime | None = None
+    affected_service_ids: tuple[uuid.UUID, ...] = ()
 
 
 class IncidentService:
@@ -60,9 +66,13 @@ class IncidentService:
         self,
         repository: IncidentRepository | None = None,
         activity: IncidentActivityRecorder | None = None,
+        catalog: CatalogRepository | None = None,
+        affected_services: AffectedServiceRepository | None = None,
     ) -> None:
         self._repository = repository or IncidentRepository()
         self._activity = activity or IncidentActivityRecorder()
+        self._catalog = catalog or CatalogRepository()
+        self._affected_services = affected_services or AffectedServiceRepository()
 
     async def create(
         self, session: AsyncSession, access: WorkspaceAccess, new_incident: NewIncident
@@ -71,6 +81,8 @@ class IncidentService:
         now = datetime.now(UTC)
         detected_at = new_incident.detected_at or now
         validate_reported_times(new_incident.impact_started_at, detected_at, now)
+        service_ids = tuple(dict.fromkeys(new_incident.affected_service_ids))
+        await require_linkable_services(session, self._catalog, access.workspace_id, service_ids)
         target_state = IncidentLifecycleState.TRIAGE
         declared_at: datetime | None = None
         if new_incident.is_declared:
@@ -110,9 +122,22 @@ class IncidentService:
                     "title": incident.title,
                     "impact_started_at": isoformat_or_none(incident.impact_started_at),
                     "detected_at": isoformat_or_none(incident.detected_at),
+                    **_service_ids_state(service_ids),
                 },
             ),
         )
+        for service_id in service_ids:
+            await self._affected_services.add(
+                session,
+                IncidentAffectedService(
+                    id=new_uuid7(),
+                    organization_id=access.organization_id,
+                    workspace_id=access.workspace_id,
+                    incident_id=incident.id,
+                    service_id=service_id,
+                    added_by_user_id=access.user_id,
+                ),
+            )
         return incident
 
     async def get(
@@ -136,12 +161,22 @@ class IncidentService:
         fetched = await self._repository.list_in_workspace(
             session,
             access.workspace_id,
-            lifecycle_states={state.value for state in filters.lifecycle_states},
-            severities={severity.value for severity in filters.severities},
+            IncidentListQuery(
+                lifecycle_states={state.value for state in filters.lifecycle_states},
+                severities={severity.value for severity in filters.severities},
+                service_ids=filters.service_ids,
+            ),
             before_id=_decode_incident_cursor(page_request),
             limit=page_request.limit + 1,
         )
         return build_page(fetched, page_request, lambda incident: (str(incident.id),))
+
+
+def _service_ids_state(service_ids: tuple[uuid.UUID, ...]) -> dict[str, object]:
+    """Only present when services were named, so earlier audit shapes stay unchanged."""
+    if not service_ids:
+        return {}
+    return {"affected_service_ids": [str(service_id) for service_id in service_ids]}
 
 
 def _decode_incident_cursor(page_request: PageRequest) -> uuid.UUID | None:

@@ -1,9 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  Trial CI/CD for relyxus-backend — ECR, CodeBuild, S3 source bucket, GitHub OIDC role.
-  Deploy from an account where org SCP allows codebuild, ecr, cloudformation, s3 and
-  iam OIDC providers. Account 925234975399 denies the OIDC provider, so it is set up with
-  scripts/setup-trial-codebuild.ps1 instead (same resources, minus OIDC).
+  Trial CI/CD for relyxus-backend: ECR repository, deployment log group and a GitHub OIDC
+  role that may push the API image. Needs an account whose org SCP allows IAM OIDC providers;
+  account 925234975399 denies them, so it uses scripts/setup-ecr-push.ps1 instead.
 
 Parameters:
   GitHubOrg:
@@ -17,25 +16,6 @@ Parameters:
     Default: ap-southeast-2
 
 Resources:
-  SourceBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "relyxus-cicd-source-${AWS::AccountId}"
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: expire-build-sources
-            Status: Enabled
-            ExpirationInDays: 7
-
   ApiRepository:
     Type: AWS::ECR::Repository
     Properties:
@@ -45,9 +25,12 @@ Resources:
       # `latest` is re-pointed on every build; commit-SHA tags are never reused.
       ImageTagMutability: MUTABLE
       LifecyclePolicy:
+        # Same rules as ../ecr-lifecycle-policy.json.
         LifecyclePolicyText: >-
-          {"rules":[{"rulePriority":1,"description":"Keep the 10 most recent images",
-          "selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":10},
+          {"rules":[{"rulePriority":1,"description":"Remove untagged images after 1 day",
+          "selection":{"tagStatus":"untagged","countType":"sinceImagePushed","countUnit":"days","countNumber":1},
+          "action":{"type":"expire"}},{"rulePriority":2,"description":"Keep the 10 most recent tagged builds",
+          "selection":{"tagStatus":"tagged","tagPatternList":["*"],"countType":"imageCountMoreThan","countNumber":10},
           "action":{"type":"expire"}}]}
 
   CicdLogGroup:
@@ -55,86 +38,6 @@ Resources:
     Properties:
       LogGroupName: /relyxus/cicd/deployments
       RetentionInDays: 90
-
-  BuildLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /relyxus/cicd/codebuild
-      RetentionInDays: 90
-
-  CodeBuildServiceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: relyxus-trial-codebuild
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: codebuild.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: relyxus-trial-codebuild
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - ecr:GetAuthorizationToken
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:BatchGetImage
-                  - ecr:PutImage
-                  - ecr:InitiateLayerUpload
-                  - ecr:UploadLayerPart
-                  - ecr:CompleteLayerUpload
-                Resource: !GetAtt ApiRepository.Arn
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:GetObjectVersion
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt SourceBucket.Arn
-                  - !Sub "${SourceBucket.Arn}/*"
-
-  TrialBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: relyxus-trial-build
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Artifacts:
-        Type: NO_ARTIFACTS
-      Environment:
-        Type: LINUX_CONTAINER
-        Image: aws/codebuild/standard:7.0
-        # SMALL is the free-tier size (100 build minutes/month).
-        ComputeType: BUILD_GENERAL1_SMALL
-        PrivilegedMode: true
-        EnvironmentVariables:
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AwsRegion
-          - Name: AWS_ACCOUNT_ID
-            Value: !Ref AWS::AccountId
-          - Name: ECR_REPOSITORY
-            Value: !Ref ApiRepository
-      Source:
-        Type: S3
-        Location: !Sub "${SourceBucket}/placeholder.zip"
-        BuildSpec: infra/aws/cicd/buildspec.yml
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: !Ref BuildLogGroup
 
   GitHubOidcProvider:
     Type: AWS::IAM::OIDCProvider
@@ -176,28 +79,25 @@ Resources:
                   - !GetAtt CicdLogGroup.Arn
                   - !Sub "${CicdLogGroup.Arn}:*"
               - Effect: Allow
-                Action:
-                  - codebuild:StartBuild
-                  - codebuild:BatchGetBuilds
-                Resource: !GetAtt TrialBuildProject.Arn
+                Action: ecr:GetAuthorizationToken
+                Resource: "*"
               - Effect: Allow
                 Action:
-                  - s3:PutObject
-                  - s3:GetObject
-                Resource: !Sub "${SourceBucket.Arn}/*"
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: !GetAtt ApiRepository.Arn
 
 Outputs:
   EcrRepositoryUri:
     Value: !Sub "${AWS::AccountId}.dkr.ecr.${AwsRegion}.amazonaws.com/${ApiRepository}"
-  CodeBuildProjectName:
-    Value: !Ref TrialBuildProject
-  SourceBucketName:
-    Value: !Ref SourceBucket
   GitHubActionsRoleArn:
     Value: !GetAtt GitHubActionsRole.Arn
   DeploymentsLogGroup:
     Value: !Ref CicdLogGroup
-  ConsoleCodeBuild:
-    Value: !Sub "https://${AwsRegion}.console.aws.amazon.com/codesuite/codebuild/projects/${TrialBuildProject}/history?region=${AwsRegion}"
-  ConsoleCloudWatchDeployments:
-    Value: !Sub "https://${AwsRegion}.console.aws.amazon.com/cloudwatch/home?region=${AwsRegion}#logsV2:log-groups/log-group/${CicdLogGroup}"
+  ConsoleEcr:
+    Value: !Sub "https://${AwsRegion}.console.aws.amazon.com/ecr/repositories/private/${AWS::AccountId}/${ApiRepository}?region=${AwsRegion}"

@@ -16,8 +16,7 @@ from typing import ClassVar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.access.service import WorkspaceAccess
-from relyxus_api.modules.audit.model import ActorType, AuditOutcome
-from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
+from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
 from relyxus_api.modules.incident.lifecycle import TERMINAL_LIFECYCLE_STATES, IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
 from relyxus_api.modules.incident.repository import IncidentRepository
@@ -25,7 +24,6 @@ from relyxus_api.modules.incident.service import INCIDENT_TARGET_TYPE, IncidentN
 from relyxus_api.shared.errors.app_errors import ConflictError, ValidationFailedError
 from relyxus_api.shared.http.etag import format_weak_etag
 from relyxus_api.shared.http.preconditions import assert_if_match
-from relyxus_api.shared.observability.correlation import get_correlation_id
 
 UPDATED_ACTION = "incident.updated"
 
@@ -53,10 +51,12 @@ class IncidentChanges:
 
 class IncidentUpdateService:
     def __init__(
-        self, repository: IncidentRepository | None = None, audit: AuditService | None = None
+        self,
+        repository: IncidentRepository | None = None,
+        activity: IncidentActivityRecorder | None = None,
     ) -> None:
         self._repository = repository or IncidentRepository()
-        self._audit = audit or AuditService()
+        self._activity = activity or IncidentActivityRecorder()
 
     async def update(
         self, session: AsyncSession, access: WorkspaceAccess, changes: IncidentChanges
@@ -88,21 +88,16 @@ class IncidentUpdateService:
             after["reason"] = changes.reason
 
         incident = await self._repository.save(session, incident)
-        await self._audit.append(
+        await self._activity.record(
             session,
-            NewAuditEvent(
-                organization_id=access.organization_id,
-                workspace_id=access.workspace_id,
-                actor_type=ActorType.USER,
-                actor_user_id=access.user_id,
-                effective_user_id=None,
+            access,
+            IncidentActivity(
+                incident_id=incident.id,
                 action=UPDATED_ACTION,
-                target_type=INCIDENT_TARGET_TYPE,
-                target_id=str(incident.id),
-                outcome=AuditOutcome.SUCCEEDED,
-                before_state=before,
-                after_state=after,
-                correlation_id=get_correlation_id(),
+                subject_type=INCIDENT_TARGET_TYPE,
+                subject_id=incident.id,
+                before=before,
+                after=after,
             ),
         )
         return incident

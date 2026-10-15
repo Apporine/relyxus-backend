@@ -291,6 +291,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I6 | `feat/incident-update` | `PATCH /api/v1/incidents/{id}` title/severity, reason for severity overrides, If-Match, audited | MPS-8.06, MPS-22A.05, MPS-8A.22 | in review |
 | I7 | `feat/incident-roles` | Incident role assignments (IC, comms lead, scribe): GET/PUT/DELETE, member check, audited (migration 0014) | MPS-11.04, MPS-14.06, MPS-20.12 (roles) | in review |
 | I8 | `feat/incident-tasks` | Live incident tasks: create, list, update (status, owner, due, priority), audited, frozen with incident (migration 0015) | MPS-11.14–11.22, MPS-20.32 | in review |
+| I9 | `feat/incident-timeline` | Append-only incident timeline written with every audited incident change; `GET /api/v1/incidents/{id}/timeline` (migration 0016) | MPS-5.20 (timeline part), MPS-8A.33, MPS-11.20, MPS-8A.14 | in review |
 
 ---
 
@@ -392,3 +393,12 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not yet:** dependencies, links, overdue alerts, timeline events, conversion to follow-ups at resolution.
 
   **Results:** pytest 413 passed against local PostgreSQL; ruff and mypy strict pass.
+
+- **I9 — 2026-10-15** — Incident timeline.
+  - **Table `incident_timeline_events`** (migration 0016): one row per incident change. Composite FK to the incident, forced RLS, and triggers that reject UPDATE and DELETE, as for `audit_events`. A `sequence` identity column gives a strict order even when several events share a millisecond.
+  - **`IncidentActivityRecorder`** writes the audit event and the timeline event together in the caller's transaction. All five incident services (declare, transition, update, roles, tasks) now record through it, so an audited change always appears on the timeline and a rejected change leaves neither.
+  - **`GET /api/v1/incidents/{id}/timeline`:** oldest first, cursor-paginated, no total. Readable by any workspace member who can see the incident; other workspaces get 404.
+  - **Contract version 0.13.0.**
+  - **Not covered yet:** existing incidents start with an empty timeline (their history stays in the audit chain); manual notes (I10); merged-timeline view with source labels (MPS-8A.16/8A.28); system actors (regression detector, automations).
+
+  **Results:** ruff and mypy strict pass; pytest 421 passed against local PostgreSQL.

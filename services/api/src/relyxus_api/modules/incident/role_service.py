@@ -16,8 +16,7 @@ from relyxus_api.modules.access.model import WorkspaceRole
 from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.role_requirements import InsufficientWorkspaceRoleError
 from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessService
-from relyxus_api.modules.audit.model import ActorType, AuditOutcome
-from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
+from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
 from relyxus_api.modules.incident.lifecycle import TERMINAL_LIFECYCLE_STATES, IncidentLifecycleState
 from relyxus_api.modules.incident.repository import IncidentRepository
 from relyxus_api.modules.incident.role_model import IncidentRole, IncidentRoleAssignment
@@ -25,7 +24,6 @@ from relyxus_api.modules.incident.role_repository import IncidentRoleRepository
 from relyxus_api.modules.incident.service import INCIDENT_TARGET_TYPE, IncidentNotFoundError
 from relyxus_api.modules.incident.update_service import IncidentNotEditableError
 from relyxus_api.shared.errors.app_errors import ValidationFailedError
-from relyxus_api.shared.observability.correlation import get_correlation_id
 from relyxus_api.shared.utils.ids import new_uuid7
 
 ROLE_ASSIGNED_ACTION = "incident.role_assigned"
@@ -41,13 +39,13 @@ class IncidentRoleService:
     def __init__(
         self,
         incidents: IncidentRepository | None = None,
-        audit: AuditService | None = None,
+        activity: IncidentActivityRecorder | None = None,
         access: WorkspaceAccessService | None = None,
         roles: IncidentRoleRepository | None = None,
     ) -> None:
         self._incidents = incidents or IncidentRepository()
         self._roles = roles or IncidentRoleRepository()
-        self._audit = audit or AuditService()
+        self._activity = activity or IncidentActivityRecorder()
         self._access = access or WorkspaceAccessService(AccessRepository())
 
     async def list_roles(
@@ -154,20 +152,15 @@ class IncidentRoleService:
         before: dict[str, object] | None,
         after: dict[str, object] | None,
     ) -> None:
-        await self._audit.append(
+        await self._activity.record(
             session,
-            NewAuditEvent(
-                organization_id=access.organization_id,
-                workspace_id=access.workspace_id,
-                actor_type=ActorType.USER,
-                actor_user_id=access.user_id,
-                effective_user_id=None,
+            access,
+            IncidentActivity(
+                incident_id=incident_id,
                 action=action,
-                target_type=INCIDENT_TARGET_TYPE,
-                target_id=str(incident_id),
-                outcome=AuditOutcome.SUCCEEDED,
-                before_state=before,
-                after_state=after,
-                correlation_id=get_correlation_id(),
+                subject_type=INCIDENT_TARGET_TYPE,
+                subject_id=incident_id,
+                before=before,
+                after=after,
             ),
         )

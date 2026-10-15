@@ -124,7 +124,11 @@ def test_resolving_creates_a_draft_owned_by_the_commander(client: TestClient) ->
             f"{INCIDENTS}/{with_commander}/timeline", headers=_headers()
         ).json()["data"]
     ]
-    assert kinds[-2:] == ["incident.transitioned", "incident.review_created"]
+    assert kinds[-3:] == [
+        "incident.transitioned",
+        "incident.review_created",
+        "incident.review_reviewer_added",
+    ]
 
 
 def test_no_review_before_resolution_and_reopen_keeps_it(client: TestClient) -> None:
@@ -146,7 +150,7 @@ def test_no_review_before_resolution_and_reopen_keeps_it(client: TestClient) -> 
 
 
 def test_review_lifecycle_with_content_rules(client: TestClient) -> None:
-    incident_id = _resolved(client, "sev1")
+    incident_id = _resolved(client, "sev1", commander=AMIRA)
 
     empty = _review_move(client, incident_id, "in_review")
     _edit(client, incident_id, summary="Processor TLS certificate expired.")
@@ -155,6 +159,7 @@ def test_review_lifecycle_with_content_rules(client: TestClient) -> None:
     submitted = _review_move(client, incident_id, "in_review")
     sent_back = _review_move(client, incident_id, "draft")
     _review_move(client, incident_id, "in_review")
+    client.post(f"{INCIDENTS}/{incident_id}/review/sign-off", headers=_headers())
     approved = _review_move(client, incident_id, "approved")
     locked = _edit(client, incident_id, summary="Changed after approval")
     published = _review_move(client, incident_id, "published")

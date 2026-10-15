@@ -1285,3 +1285,5 @@ Still open: Q-07a, Q-08, Q-10, Q-11, Q-17, Q-23, Q-24, Q-26, Q-27, Q-28, Q-32, Q
 
 
 **Q-37 Which follow-ups are mandatory by default? (MPS-13.17)** The closure gate counts "mandatory follow-ups" for SEV1/SEV2 but the spec does not say what makes one mandatory. Provisional: `is_mandatory` defaults to true on SEV1/SEV2 incidents and false otherwise; anyone who can write incidents can change it (I14). Confirm, or name who may mark a follow-up optional.
+
+**Q-38 Default required reviewers (MPS-13.13).** The spec defaults SEV1 reviewers to the incident commander, service owner and Head of SRE, plus the compliance officer if a regulator clock started and the CISO for security events. Services, a Head of SRE role, clocks and security events do not exist yet. Provisional (I17): the incident commander role holder is added automatically to SEV1/SEV2 reviews; SEV1/SEV2 reviews need at least one required reviewer before approval; the review owner adds others by hand. Confirm, and say whether SEV2 should share the SEV1 defaults.

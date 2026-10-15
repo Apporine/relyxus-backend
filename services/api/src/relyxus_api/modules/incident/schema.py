@@ -40,6 +40,11 @@ class DeclareIncidentRequest(BaseModel):
         description="When the problem was noticed; defaults to the time of this request.",
         examples=["2026-10-15T07:50:00Z"],
     )
+    affected_service_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        max_length=50,
+        description="Active services of this workspace the incident affects (MPS-8A.08).",
+    )
 
 
 class IncidentView(BaseModel):
@@ -193,3 +198,14 @@ class IncidentRoleView(BaseModel):
             assigned_by_user_id=assignment.assigned_by_user_id,
             assigned_at=assignment.updated_at,
         )
+
+
+class AffectedServiceView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    service_id: uuid.UUID
+    key: str
+    name: str
+    tier: str
+    added_by_user_id: uuid.UUID
+    added_at: datetime

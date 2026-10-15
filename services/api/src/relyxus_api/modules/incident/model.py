@@ -1,6 +1,7 @@
-"""Workspace-scoped incident records (MPS-8A.07 Ph0 storage; declare API follows)."""
+"""Workspace-scoped incident records (MPS-8A.07, MPS-8A.08, MPS-8A.20)."""
 
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, String
@@ -43,6 +44,10 @@ class Incident(RecordColumns, Base):
             f"char_length(title) >= 1 AND char_length(title) <= {TITLE_MAX_LENGTH}",
             name="title_length",
         ),
+        CheckConstraint(
+            "lifecycle_state = 'triage' OR declared_at IS NOT NULL",
+            name="declared_when_past_triage",
+        ),
         Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
         Index("ix_incidents_organization_id", "organization_id"),
     )
@@ -54,3 +59,6 @@ class Incident(RecordColumns, Base):
     lifecycle_state: Mapped[str] = mapped_column(String(32))
     severity: Mapped[str] = mapped_column(String(8))
     title: Mapped[str] = mapped_column(String(TITLE_MAX_LENGTH))
+    # The "declared" metric timestamp (MPS-8A.20); set when the incident leaves triage.
+    declared_at: Mapped[datetime | None]
+    declared_by_user_id: Mapped[uuid.UUID | None]

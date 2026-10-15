@@ -1,4 +1,4 @@
-"""Workspace role gates for sensitive reads (MPS-14.02)."""
+"""Workspace role gates (MPS-14.02-14.09). Ph0 checks until OPA owns these decisions."""
 
 from collections.abc import AsyncIterator
 from typing import Annotated, ClassVar
@@ -35,4 +35,29 @@ async def require_audit_read_access(
 
 AuditReadWorkspaceDependency = Annotated[
     WorkspaceSession, Depends(require_audit_read_access, scope="function")
+]
+
+
+# MPS-14: incident commanders run incidents and responders investigate; viewers and
+# auditors may never change state.
+_INCIDENT_WRITE_ROLES = frozenset(
+    {
+        WorkspaceRole.OWNER,
+        WorkspaceRole.ADMIN,
+        WorkspaceRole.INCIDENT_COMMANDER,
+        WorkspaceRole.RESPONDER,
+    }
+)
+
+
+async def require_incident_write_access(
+    workspace: WorkspaceSessionDependency,
+) -> AsyncIterator[WorkspaceSession]:
+    if not _INCIDENT_WRITE_ROLES.intersection(workspace.access.roles):
+        raise InsufficientWorkspaceRoleError("This workspace role cannot create incidents.")
+    yield workspace
+
+
+IncidentWriteWorkspaceDependency = Annotated[
+    WorkspaceSession, Depends(require_incident_write_access, scope="function")
 ]

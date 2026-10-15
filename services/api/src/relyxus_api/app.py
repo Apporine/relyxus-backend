@@ -33,6 +33,7 @@ from relyxus_api.modules.license.service import (
     NoLicenseInstalledError,
 )
 from relyxus_api.modules.policy.controller import router as policy_router
+from relyxus_api.modules.team.controller import router as team_router
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
 from relyxus_api.shared.auth.access_token import AccessTokenVerifier, JwksSigningKeyResolver
 from relyxus_api.shared.config.settings import Environment, Settings, load_settings
@@ -52,7 +53,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.22.0"
+API_CONTRACT_VERSION = "0.23.0"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 LICENSE_READINESS_PROBE_NAME = "commercial_license"
@@ -117,6 +118,7 @@ def create_app(settings: Settings) -> FastAPI:
         incident_review_router,
         license_router,
         policy_router,
+        team_router,
     ):
         app.include_router(router, responses=PROBLEM_RESPONSES | AUTHENTICATED_RESPONSES)
     return app

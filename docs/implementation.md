@@ -290,6 +290,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I5 | `feat/incident-number` | Per-workspace incident number (display key), concurrency-safe allocation, backfill (migration 0013) | MPS-20.12, ADR-0003 §4 | in review |
 | I6 | `feat/incident-update` | `PATCH /api/v1/incidents/{id}` title/severity, reason for severity overrides, If-Match, audited | MPS-8.06, MPS-22A.05, MPS-8A.22 | in review |
 | I7 | `feat/incident-roles` | Incident role assignments (IC, comms lead, scribe): GET/PUT/DELETE, member check, audited (migration 0014) | MPS-11.04, MPS-14.06, MPS-20.12 (roles) | in review |
+| I8 | `feat/incident-tasks` | Live incident tasks: create, list, update (status, owner, due, priority), audited, frozen with incident (migration 0015) | MPS-11.14–11.22, MPS-20.32 | in review |
 
 ---
 
@@ -376,3 +377,18 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not yet:** commander handoff package and acknowledgement (MPS-11.23–24); type default roles (MPS-8A.01).
 
   **Results:** pytest 405 passed against local PostgreSQL; ruff and mypy strict pass.
+
+- **I8 — 2026-10-15** — Live incident tasks.
+  - **Endpoints:**
+    - `POST /api/v1/incidents/{id}/tasks` (`Idempotency-Key`)
+    - `GET …/tasks` (oldest first, cursor)
+    - `PATCH …/tasks/{task_id}` (`If-Match`; null clears owner or due)
+  - **Statuses:** open / in progress / blocked / done (records completion time and who) / cancelled (reason required). Done and cancelled are final (Q-36).
+  - **Fields:** priority high/medium/low (provisional, Q-35); single owner, who must be a workspace member; `is_unassigned` flag (MPS-11.14).
+  - **Visibility:** tasks follow their incident (MPS-11.22) and are frozen when it is terminal.
+  - **Audit:** creates and changes are audited with only the changed fields.
+  - **Migration `0015`:** composite foreign key to the incident's workspace, consistency CHECKs, forced RLS.
+  - **Contract version 0.12.0.**
+  - **Not yet:** dependencies, links, overdue alerts, timeline events, conversion to follow-ups at resolution.
+
+  **Results:** pytest 413 passed against local PostgreSQL; ruff and mypy strict pass.

@@ -5,7 +5,12 @@ from typing import Annotated
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
-from relyxus_api.modules.incident.model import TITLE_MAX_LENGTH, Incident, IncidentSeverity
+from relyxus_api.modules.incident.model import (
+    ROOT_CAUSE_MAX_LENGTH,
+    TITLE_MAX_LENGTH,
+    Incident,
+    IncidentSeverity,
+)
 from relyxus_api.modules.incident.role_model import IncidentRole, IncidentRoleAssignment
 
 IncidentTitle = Annotated[
@@ -60,6 +65,14 @@ class IncidentView(BaseModel):
     mitigated_at: datetime | None = Field(examples=[None])
     resolved_at: datetime | None = Field(examples=[None])
     closed_at: datetime | None = Field(examples=[None])
+    closed_by_user_id: uuid.UUID | None = Field(examples=[None])
+    root_cause: str | None = Field(
+        description="Recorded at closing; required for SEV1/SEV2 (MPS-13.04).", examples=[None]
+    )
+    closure_exception_reason: str | None = Field(
+        description="Set when an owner closed without the usual gates (MPS-13.17).",
+        examples=[None],
+    )
     cancelled_at: datetime | None = Field(examples=[None])
     merged_into_incident_id: uuid.UUID | None = Field(examples=[None])
     created_at: datetime = Field(examples=["2026-10-15T07:55:41Z"])
@@ -83,6 +96,9 @@ class IncidentView(BaseModel):
             mitigated_at=incident.mitigated_at,
             resolved_at=incident.resolved_at,
             closed_at=incident.closed_at,
+            closed_by_user_id=incident.closed_by_user_id,
+            root_cause=incident.root_cause,
+            closure_exception_reason=incident.closure_exception_reason,
             cancelled_at=incident.cancelled_at,
             merged_into_incident_id=incident.merged_into_incident_id,
             created_at=incident.created_at,
@@ -93,6 +109,11 @@ class IncidentView(BaseModel):
 REASON_MAX_LENGTH = 1000
 TransitionReason = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=REASON_MAX_LENGTH)
+]
+
+
+RootCause = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=ROOT_CAUSE_MAX_LENGTH)
 ]
 
 
@@ -111,6 +132,18 @@ class TransitionIncidentRequest(BaseModel):
         default=None,
         description="Required when target_state is merged; an open incident in this workspace.",
         examples=["0192f0c4-7d1e-7a3b-9c2d-5e6f7a8b9c0d"],
+    )
+    root_cause: RootCause | None = Field(
+        default=None,
+        description="When closing: the root cause; required for SEV1/SEV2 (MPS-13.04).",
+        examples=["Expired TLS certificate on the card processor gateway"],
+    )
+    closure_exception_reason: TransitionReason | None = Field(
+        default=None,
+        description=(
+            "When closing: a workspace owner's reason to close without a signed-off review, "
+            "finished tasks or complete mandatory follow-ups (MPS-13.17)."
+        ),
     )
 
 

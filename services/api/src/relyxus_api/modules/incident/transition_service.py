@@ -7,8 +7,10 @@ the change in the audit chain and the timeline in the same transaction.
 Not yet enforceable (their records do not exist yet; tracked in the PR and ADR-0004):
 a working hypothesis or action before mitigating (8A.09), a mitigation action before
 monitoring (8A.10), impact back to normal for the watch period before resolving (8A.11).
-Closing is refused until post-incident review sign-off exists (8A.12, MPS-13.17).
-Resolving creates the post-incident review (8A.11).
+Resolving creates the post-incident review (8A.11). Closing goes through the closure gate
+(`closure_service`): review owner or workspace owner, signed-off review, no unfinished
+tasks, complete mandatory follow-ups and a root cause for SEV1/SEV2, or an owner's
+recorded exception (8A.12, MPS-13.04, MPS-13.17).
 """
 
 import uuid
@@ -21,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from relyxus_api.modules.access.role_requirements import InsufficientWorkspaceRoleError
 from relyxus_api.modules.access.service import WorkspaceAccess
 from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
+from relyxus_api.modules.incident.closure_service import ClosureDetails, IncidentClosureService
 from relyxus_api.modules.incident.lifecycle import (
     OPEN_LIFECYCLE_STATES,
     IncidentLifecycleState,
@@ -28,6 +31,7 @@ from relyxus_api.modules.incident.lifecycle import (
 )
 from relyxus_api.modules.incident.model import Incident
 from relyxus_api.modules.incident.repository import IncidentRepository
+from relyxus_api.modules.incident.review_model import IncidentReview
 from relyxus_api.modules.incident.review_service import IncidentReviewService
 from relyxus_api.modules.incident.service import INCIDENT_TARGET_TYPE, IncidentNotFoundError
 from relyxus_api.modules.incident.transition_rules import roles_allowed_for
@@ -42,10 +46,6 @@ _REASON_REQUIRED_FOR = frozenset({_STATE.CANCELLED})
 
 class IncidentAlreadyInStateError(ConflictError):
     code: ClassVar[str] = "INCIDENT_ALREADY_IN_STATE"
-
-
-class IncidentReviewRequiredError(ConflictError):
-    code: ClassVar[str] = "INCIDENT_REVIEW_REQUIRED"
 
 
 class IncidentReopenWindowExpiredError(ConflictError):
@@ -67,6 +67,8 @@ class TransitionCommand:
     reason: str | None
     merged_into_incident_id: uuid.UUID | None
     if_match: str | None
+    root_cause: str | None = None
+    closure_exception_reason: str | None = None
 
 
 class IncidentTransitionService:
@@ -76,11 +78,13 @@ class IncidentTransitionService:
         repository: IncidentRepository | None = None,
         activity: IncidentActivityRecorder | None = None,
         reviews: IncidentReviewService | None = None,
+        closure: IncidentClosureService | None = None,
     ) -> None:
         self._reopen_window = reopen_window
         self._repository = repository or IncidentRepository()
         self._activity = activity or IncidentActivityRecorder()
         self._reviews = reviews or IncidentReviewService()
+        self._closure = closure or IncidentClosureService()
 
     async def transition(
         self, session: AsyncSession, access: WorkspaceAccess, command: TransitionCommand
@@ -97,13 +101,19 @@ class IncidentTransitionService:
         if current is target:
             raise IncidentAlreadyInStateError(f"The incident is already {target.value}.")
         validate_lifecycle_transition(current, target)
+        review: IncidentReview | None = None
         if target is _STATE.CLOSED:
-            # Nobody can close yet: the review owner and sign-off arrive with post-incident
-            # reviews (MPS-8A.12, MPS-13.17). Say so rather than reporting a role problem.
-            raise IncidentReviewRequiredError(
-                "Closing requires a signed-off post-incident review, which is not available yet."
+            # Closing is decided by the review owner, not a workspace role (MPS-8A.12).
+            review = await self._closure.check(
+                session,
+                access,
+                incident,
+                ClosureDetails(
+                    root_cause=command.root_cause,
+                    exception_reason=command.closure_exception_reason,
+                ),
             )
-        if not roles_allowed_for(current, target).intersection(access.roles):
+        elif not roles_allowed_for(current, target).intersection(access.roles):
             raise InsufficientWorkspaceRoleError(
                 f"Your workspace role cannot move an incident from {current.value} to "
                 f"{target.value}."
@@ -129,6 +139,8 @@ class IncidentTransitionService:
         if target is _STATE.RESOLVED:
             # MPS-8A.11: resolving fires post-incident review creation.
             await self._reviews.create_on_resolution(session, access, incident)
+        elif target is _STATE.CLOSED:
+            await self._closure.lock_review(session, access, review)
         return incident
 
     async def _apply_target_rules(
@@ -157,6 +169,11 @@ class IncidentTransitionService:
             incident.mitigated_at = now
         elif target is _STATE.RESOLVED:
             incident.resolved_at = now
+        elif target is _STATE.CLOSED:
+            incident.closed_at = now
+            incident.closed_by_user_id = access.user_id
+            incident.root_cause = command.root_cause
+            incident.closure_exception_reason = command.closure_exception_reason
         elif target is _STATE.CANCELLED:
             incident.cancelled_at = now
         elif is_reopen:
@@ -193,4 +210,7 @@ def _after_state(incident: Incident, reason: str | None) -> dict[str, object]:
         after["reason"] = reason
     if incident.merged_into_incident_id is not None:
         after["merged_into_incident_id"] = str(incident.merged_into_incident_id)
+    if incident.lifecycle_state == _STATE.CLOSED.value:
+        after["root_cause"] = incident.root_cause
+        after["closure_exception_reason"] = incident.closure_exception_reason
     return after

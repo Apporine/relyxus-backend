@@ -1028,6 +1028,36 @@
             ],
             "title": "Closed At"
           },
+          "closed_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              null
+            ],
+            "title": "Closed By User Id"
+          },
+          "closure_exception_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when an owner closed without the usual gates (MPS-13.17).",
+            "examples": [
+              null
+            ],
+            "title": "Closure Exception Reason"
+          },
           "created_at": {
             "examples": [
               "2026-10-15T07:55:41Z"
@@ -1163,6 +1193,21 @@
             ],
             "title": "Resolved At"
           },
+          "root_cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recorded at closing; required for SEV1/SEV2 (MPS-13.04).",
+            "examples": [
+              null
+            ],
+            "title": "Root Cause"
+          },
           "severity": {
             "$ref": "#/components/schemas/IncidentSeverity",
             "examples": [
@@ -1209,6 +1254,9 @@
           "mitigated_at",
           "resolved_at",
           "closed_at",
+          "closed_by_user_id",
+          "root_cause",
+          "closure_exception_reason",
           "cancelled_at",
           "merged_into_incident_id",
           "created_at",
@@ -2576,6 +2624,20 @@
         "additionalProperties": false,
         "description": "Move an incident through its lifecycle (MPS-8A.09-8A.16, ADR-0004).",
         "properties": {
+          "closure_exception_reason": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When closing: a workspace owner's reason to close without a signed-off review, finished tasks or complete mandatory follow-ups (MPS-13.17).",
+            "title": "Closure Exception Reason"
+          },
           "merged_into_incident_id": {
             "anyOf": [
               {
@@ -2608,6 +2670,23 @@
               "Duplicate of the EU card authorisation incident"
             ],
             "title": "Reason"
+          },
+          "root_cause": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When closing: the root cause; required for SEV1/SEV2 (MPS-13.04).",
+            "examples": [
+              "Expired TLS certificate on the card processor gateway"
+            ],
+            "title": "Root Cause"
           },
           "target_state": {
             "$ref": "#/components/schemas/IncidentLifecycleState",
@@ -3051,7 +3130,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.21.0"
+    "version": "0.22.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -6949,7 +7028,7 @@
     },
     "/api/v1/incidents/{incident_id}/transitions": {
       "post": {
-        "description": "Applies one lifecycle transition (ADR-0004) and records it in the workspace audit chain in the same transaction. Each move is limited to the roles MPS-8A names; cancelling and reopening need a `reason`; merging needs `merged_into_incident_id`; reopening is allowed only within the configured window after resolution; closing returns 409 until post-incident review sign-off exists. Optional `If-Match` returns 412 if the incident changed since it was read. Requires `Idempotency-Key`.",
+        "description": "Applies one lifecycle transition (ADR-0004) and records it in the workspace audit chain in the same transaction. Each move is limited to the roles MPS-8A names; cancelling and reopening need a `reason`; merging needs `merged_into_incident_id`; reopening is allowed only within the configured window after resolution. Closing is for the review owner or a workspace owner and needs an approved review, no unfinished tasks and, for SEV1/SEV2, complete mandatory follow-ups and a `root_cause`; a workspace owner may close with `closure_exception_reason` instead of the review, task and follow-up gates. Optional `If-Match` returns 412 if the incident changed since it was read. Requires `Idempotency-Key`.",
         "operationId": "transition_incident_api_v1_incidents__incident_id__transitions_post",
         "parameters": [
           {

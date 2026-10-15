@@ -19,6 +19,10 @@ from relyxus_api.modules.incident.lifecycle import (
     validate_lifecycle_transition,
 )
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
+from relyxus_api.modules.incident.reported_times import (
+    isoformat_or_none,
+    validate_reported_times,
+)
 from relyxus_api.modules.incident.repository import IncidentRepository
 from relyxus_api.shared.errors.app_errors import NotFoundError
 from relyxus_api.shared.http.pagination import InvalidCursorError, Page, PageRequest, build_page
@@ -46,6 +50,9 @@ class NewIncident:
     title: str
     severity: IncidentSeverity
     is_declared: bool
+    impact_started_at: datetime | None = None
+    # Defaults to the moment the incident is reported in Relyxus.
+    detected_at: datetime | None = None
 
 
 class IncidentService:
@@ -61,12 +68,15 @@ class IncidentService:
         self, session: AsyncSession, access: WorkspaceAccess, new_incident: NewIncident
     ) -> Incident:
         """Create in triage, then declare (triage → investigating) unless saved as a draft."""
+        now = datetime.now(UTC)
+        detected_at = new_incident.detected_at or now
+        validate_reported_times(new_incident.impact_started_at, detected_at, now)
         target_state = IncidentLifecycleState.TRIAGE
         declared_at: datetime | None = None
         if new_incident.is_declared:
             target_state = IncidentLifecycleState.INVESTIGATING
             validate_lifecycle_transition(IncidentLifecycleState.TRIAGE, target_state)
-            declared_at = datetime.now(UTC)
+            declared_at = now
 
         number = await self._repository.allocate_number(session, access.workspace_id)
         incident = await self._repository.add(
@@ -81,6 +91,8 @@ class IncidentService:
                 title=new_incident.title,
                 declared_at=declared_at,
                 declared_by_user_id=access.user_id if new_incident.is_declared else None,
+                impact_started_at=new_incident.impact_started_at,
+                detected_at=detected_at,
             ),
         )
         await self._activity.record(
@@ -96,6 +108,8 @@ class IncidentService:
                     "lifecycle_state": incident.lifecycle_state,
                     "severity": incident.severity,
                     "title": incident.title,
+                    "impact_started_at": isoformat_or_none(incident.impact_started_at),
+                    "detected_at": isoformat_or_none(incident.detected_at),
                 },
             ),
         )

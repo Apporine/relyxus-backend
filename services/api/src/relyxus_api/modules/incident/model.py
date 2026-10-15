@@ -70,6 +70,14 @@ class Incident(RecordColumns, Base):
             name="merged_has_target",
         ),
         CheckConstraint("merged_into_incident_id IS DISTINCT FROM id", name="not_merged_into_self"),
+        CheckConstraint(
+            "impact_started_at IS NULL OR detected_at IS NULL OR impact_started_at <= detected_at",
+            name="impact_not_after_detection",
+        ),
+        CheckConstraint(
+            "(acknowledged_at IS NULL) = (acknowledged_by_user_id IS NULL)",
+            name="acknowledged_has_actor",
+        ),
         Index("ix_incidents_merged_into_incident_id", "merged_into_incident_id"),
         Index("ix_incidents_workspace_id_lifecycle_state", "workspace_id", "lifecycle_state"),
         Index("ix_incidents_organization_id", "organization_id"),
@@ -85,6 +93,12 @@ class Incident(RecordColumns, Base):
     lifecycle_state: Mapped[str] = mapped_column(String(32))
     severity: Mapped[str] = mapped_column(String(8))
     title: Mapped[str] = mapped_column(String(TITLE_MAX_LENGTH))
+    # Reported by people (or, later, alerts): when impact began and when it was noticed.
+    impact_started_at: Mapped[datetime | None]
+    detected_at: Mapped[datetime | None]
+    # First acknowledgement by a responder (MPS-15.02 war room "Acknowledge").
+    acknowledged_at: Mapped[datetime | None]
+    acknowledged_by_user_id: Mapped[uuid.UUID | None]
     # The "declared" metric timestamp (MPS-8A.20); set when the incident leaves triage.
     declared_at: Mapped[datetime | None]
     declared_by_user_id: Mapped[uuid.UUID | None]

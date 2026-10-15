@@ -1,8 +1,10 @@
-"""Edit an open incident's title or severity (MPS-8.06, MPS-22A.05, MPS-8A.22).
+"""Edit an open incident's title, severity or reported times (MPS-8.06, MPS-8A.20, MPS-22A.05).
 
 A severity change is a human override of the suggested severity, so it needs a reason
-(MPS-8.06). The incident row is locked, an optional If-Match is honoured, and the change is
-audited in the same transaction with only the fields that changed.
+(MPS-8.06). Impact-started and detected times can be corrected as facts emerge; they
+must stay plausible (see `reported_times`). The incident row is locked, an optional
+If-Match is honoured, and the change is audited in the same transaction with only the
+fields that changed.
 
 Not yet: raising severity to SEV1 should open the war room, prompt regulator
 classification and run the type's SEV1 automations (MPS-8A.19); those features do not
@@ -11,6 +13,7 @@ exist yet.
 
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +22,10 @@ from relyxus_api.modules.access.service import WorkspaceAccess
 from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
 from relyxus_api.modules.incident.lifecycle import TERMINAL_LIFECYCLE_STATES, IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
+from relyxus_api.modules.incident.reported_times import (
+    isoformat_or_none,
+    validate_reported_times,
+)
 from relyxus_api.modules.incident.repository import IncidentRepository
 from relyxus_api.modules.incident.service import INCIDENT_TARGET_TYPE, IncidentNotFoundError
 from relyxus_api.shared.errors.app_errors import ConflictError, ValidationFailedError
@@ -47,6 +54,8 @@ class IncidentChanges:
     severity: IncidentSeverity | None
     reason: str | None
     if_match: str | None
+    impact_started_at: datetime | None = None
+    detected_at: datetime | None = None
 
 
 class IncidentUpdateService:
@@ -82,6 +91,7 @@ class IncidentUpdateService:
                 raise SeverityChangeReasonRequiredError("A reason is required to change severity.")
             before["severity"], after["severity"] = incident.severity, changes.severity.value
             incident.severity = changes.severity.value
+        self._apply_reported_times(incident, changes, before, after)
         if not after:
             raise NoIncidentChangesError("The request does not change the incident.")
         if changes.reason:
@@ -101,3 +111,24 @@ class IncidentUpdateService:
             ),
         )
         return incident
+
+    @staticmethod
+    def _apply_reported_times(
+        incident: Incident,
+        changes: IncidentChanges,
+        before: dict[str, object],
+        after: dict[str, object],
+    ) -> None:
+        impact_started_at = changes.impact_started_at or incident.impact_started_at
+        detected_at = changes.detected_at or incident.detected_at
+        if (impact_started_at, detected_at) == (incident.impact_started_at, incident.detected_at):
+            return
+        validate_reported_times(impact_started_at, detected_at, datetime.now(UTC))
+        for name, current, new in (
+            ("impact_started_at", incident.impact_started_at, impact_started_at),
+            ("detected_at", incident.detected_at, detected_at),
+        ):
+            if new != current:
+                before[name], after[name] = isoformat_or_none(current), isoformat_or_none(new)
+        incident.impact_started_at = impact_started_at
+        incident.detected_at = detected_at

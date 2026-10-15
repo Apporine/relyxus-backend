@@ -97,6 +97,7 @@ async def declare_incident(
             impact_started_at=body.impact_started_at,
             detected_at=body.detected_at,
             affected_service_ids=tuple(body.affected_service_ids),
+            visibility=body.visibility,
         ),
     )
     payload = _incident_body(incident)

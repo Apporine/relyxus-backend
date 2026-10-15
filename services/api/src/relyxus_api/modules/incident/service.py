@@ -22,7 +22,7 @@ from relyxus_api.modules.incident.lifecycle import (
     IncidentLifecycleState,
     validate_lifecycle_transition,
 )
-from relyxus_api.modules.incident.model import Incident, IncidentSeverity
+from relyxus_api.modules.incident.model import Incident, IncidentSeverity, IncidentVisibility
 from relyxus_api.modules.incident.reported_times import (
     isoformat_or_none,
     validate_reported_times,
@@ -59,6 +59,7 @@ class NewIncident:
     # Defaults to the moment the incident is reported in Relyxus.
     detected_at: datetime | None = None
     affected_service_ids: tuple[uuid.UUID, ...] = ()
+    visibility: IncidentVisibility = IncidentVisibility.WORKSPACE
 
 
 class IncidentService:
@@ -104,6 +105,8 @@ class IncidentService:
                 declared_at=declared_at,
                 declared_by_user_id=access.user_id if new_incident.is_declared else None,
                 impact_started_at=new_incident.impact_started_at,
+                visibility=new_incident.visibility.value,
+                created_by_user_id=access.user_id,
                 detected_at=detected_at,
             ),
         )
@@ -123,6 +126,7 @@ class IncidentService:
                     "impact_started_at": isoformat_or_none(incident.impact_started_at),
                     "detected_at": isoformat_or_none(incident.detected_at),
                     **_service_ids_state(service_ids),
+                    **_visibility_state(new_incident.visibility),
                 },
             ),
         )
@@ -177,6 +181,13 @@ def _service_ids_state(service_ids: tuple[uuid.UUID, ...]) -> dict[str, object]:
     if not service_ids:
         return {}
     return {"affected_service_ids": [str(service_id) for service_id in service_ids]}
+
+
+def _visibility_state(visibility: IncidentVisibility) -> dict[str, object]:
+    """Only present when not workspace-wide, so earlier audit shapes stay unchanged."""
+    if visibility is IncidentVisibility.WORKSPACE:
+        return {}
+    return {"visibility": visibility.value}
 
 
 def _decode_incident_cursor(page_request: PageRequest) -> uuid.UUID | None:

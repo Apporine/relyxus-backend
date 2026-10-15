@@ -76,6 +76,17 @@ class AccessRepository:
         )
         return set(roles)
 
+    async def list_team_ids(
+        self, session: AsyncSession, user_id: uuid.UUID, workspace_id: uuid.UUID
+    ) -> set[uuid.UUID]:
+        """Teams the user belongs to in this workspace. Needs the user context."""
+        team_ids = await session.scalars(
+            select(TeamMember.team_id).where(
+                TeamMember.user_id == user_id, TeamMember.workspace_id == workspace_id
+            )
+        )
+        return set(team_ids)
+
     async def list_workspaces_for_user(
         self,
         session: AsyncSession,

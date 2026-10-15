@@ -314,6 +314,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | C2 | `feat/team-role-grants` | Team role grants unioned into workspace access (direct members only); grant/revoke by owners; RLS widened to own team rows (migration 0025) | Q-18 (ADR-0003 §6), MPS-14.01 "permissions follow team", MPS-20.06 (partial) | in review |
 | C3 | `feat/services` | Service catalogue: create/list/get/update/archive services with tier, environment, owner team, labels (migration 0026) | MPS-20.08 (partial), MPS-14.01 | in review |
 | C4 | `feat/incident-services` | Affected services on incidents: at declaration and later (add/remove), list incidents by service, on timeline (migration 0027) | MPS-8A.08 (affected service, not yet required), MPS-20.12, MPS-15.02 (filter by service) | in review |
+| C5 | `feat/incident-visibility` | Incident visibility modes and access grants; one visibility rule on every incident read (404 for the incident and all sub-resources); manage by owners and ICs (migration 0028) | MPS-8A.23 (Ph0 model), MPS-8A.24 (API part), MPS-20.30, MPS-23.05 (shared authorisation incl. incident visibility) | in review |
 
 ---
 
@@ -622,3 +623,30 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** making an affected service *required* at declaration (MPS-8A.08). It stays optional so workspaces without a catalogue can still declare; that waits for incident types (required fields per type).
 
   **Results:** ruff and mypy strict pass; pytest 519 passed against local PostgreSQL.
+
+- **C5 — 2026-10-15** — Incident visibility.
+  - **Migration 0028:**
+    - `incidents.visibility` (`workspace` by default, so existing incidents are unchanged; `restricted`, `invite_only`, `confidential`) and `incidents.created_by_user_id`.
+    - Table `incident_access_grants`: exactly one person, team or role per grant, with reason and optional expiry; composite FKs; forced RLS.
+  - **One rule, one place** (`incident/visibility.py`), applied by `IncidentRepository` to find, lock and list. Every sub-resource goes through those reads, so a hidden incident is a 404 for the incident and everything under it, and lists leave it out (MPS-8A.24 "cannot learn the incident exists").
+    - The caller ("viewer": user, effective roles, teams) is attached to the session by `open_workspace` (`access/viewer.py`).
+    - With no viewer, the rule fails closed to workspace incidents.
+  - **Who sees a non-workspace incident** (register **Q-42**, provisional):
+    - Owners.
+    - Its creator, declarer and incident role holders.
+    - Unexpired person grants.
+    - For `restricted` only: team and role grants.
+  - **Endpoints:**
+    - `PUT /api/v1/incidents/{id}/visibility` (with reason)
+    - `GET` / `POST …/access-grants`
+    - `DELETE …/access-grants/{grant_id}`
+    - Owners and incident commanders only. The actor keeps access through a person grant when restricting.
+    - On the timeline and in the audit chain. Declare also accepts `visibility`.
+  - **Contract version 0.27.0.**
+  - **Not covered yet:**
+    - Restriction in search, notifications, webhooks, chat, exports, analytics and AI retrieval (MPS-8A.24–8A.26; Ph3 full enforcement).
+    - Export lock and retention hold for confidential incidents.
+    - RLS enforcement as defence in depth. Tests run as a BYPASSRLS superuser, so the API-level rule is what is tested today.
+    - The audit log, which is auditor-only, still lists restricted incidents' events.
+
+  **Results:** ruff and mypy strict pass; pytest 532 passed against local PostgreSQL.

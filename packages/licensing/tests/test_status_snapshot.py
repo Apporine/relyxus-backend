@@ -5,6 +5,7 @@ import json
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 
+from apporine_licensing.base64url import decode_base64url, encode_base64url
 from apporine_licensing.errors import CustomerMismatchError, SignatureInvalidError
 from apporine_licensing.key_set import KeyEnvironment, TrustedKey, TrustedKeySet
 from apporine_licensing.status_snapshot import CommercialStatus, verify_status_snapshot
@@ -39,7 +40,11 @@ def test_unsigned_or_tampered_snapshot_is_rejected(
     production_private_key: ec.EllipticCurvePrivateKey, production_key: TrustedKey
 ) -> None:
     envelope = json.loads(sign_status_snapshot(production_private_key, PRODUCTION_KEY_ID))
-    envelope["signature"] = envelope["signature"][::-1]
+    # Flip one byte of the decoded signature and re-encode, so the value stays canonical
+    # base64url and the rejection is always the signature check, not a format check.
+    signature = bytearray(decode_base64url(envelope["signature"]))
+    signature[-1] ^= 0x01
+    envelope["signature"] = encode_base64url(bytes(signature))
     document = json.dumps(envelope, separators=(",", ":")).encode("utf-8")
     key_set = TrustedKeySet([production_key])
 

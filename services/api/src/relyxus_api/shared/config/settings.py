@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     license_deployment_id: str | None = None
     license_key_environment: str = "production"
     license_readiness_organization_id: uuid.UUID | None = None
+    license_status_url: AnyHttpUrl | None = None
+    license_status_fetch_timeout_seconds: PositiveFloat = 5.0
+    license_status_cache_ttl_seconds: NonNegativeInt = 3600
+    license_status_outage_grace_seconds: NonNegativeInt = 86_400
     policy_bundle_path: str | None = None
 
     @field_validator("database_url")

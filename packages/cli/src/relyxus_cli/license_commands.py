@@ -1,7 +1,7 @@
-"""`relyxus license inspect|verify` (DEP-23.02, LIC-15.03).
+"""`relyxus license inspect|verify|import` (DEP-23.02, LIC-15.03, LIC-11.02).
 
-`install`, `status` and `replace` need the local licence store and are not implemented yet;
-they are deliberately absent rather than stubbed (DEP-7.03).
+`status` and `replace` need the API-side licence store and are not implemented on the CLI;
+`import` verifies offline and emits an install-ready artifact for air-gapped renewal (LIC-19.04).
 """
 
 from dataclasses import dataclass
@@ -41,6 +41,28 @@ def inspect_license(license_file: Path) -> JsonObject:
             "key_id": envelope.key_id,
         },
         "payload": _describe_payload(payload),
+    }
+
+
+def import_license(request: VerifyRequest) -> JsonObject:
+    """Verify offline and return the exact artifact bytes for organisation licence install."""
+    key_set = load_key_set_document(request.key_set_file.read_bytes())
+    installation = InstallationIdentity(
+        product_id=request.product_id,
+        customer_id=request.customer_id,
+        deployment_id=request.deployment_id,
+        environment=request.environment,
+    )
+    artifact_bytes = request.license_file.read_bytes()
+    verified = LicenseVerifier(key_set, installation).verify(artifact_bytes, request.evaluated_at)
+    return {
+        "ready_for_install": True,
+        "artifact": artifact_bytes.decode("utf-8"),
+        "verification": _describe_verification(verified),
+        "next_step": (
+            "POST the artifact field to POST /api/v1/license/install with Idempotency-Key "
+            "and workspace admin credentials. Repeat for each air-gapped renewal."
+        ),
     }
 
 

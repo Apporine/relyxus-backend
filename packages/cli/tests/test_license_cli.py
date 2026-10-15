@@ -89,6 +89,34 @@ def test_inspect_shows_contents_and_says_signature_is_unverified(
     assert output["payload"]["license_id"] == LICENSE_ID
 
 
+def test_import_emits_verified_artifact_for_install(
+    license_file: Path, key_set_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exit_code = main(
+        [
+            "license",
+            "import",
+            "--file",
+            str(license_file),
+            "--key-set",
+            str(key_set_file),
+            "--customer-id",
+            CUSTOMER_ID,
+            "--deployment-id",
+            DEPLOYMENT_ID,
+            "--at",
+            "2027-01-15T12:00:00Z",
+        ]
+    )
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == EXIT_OK
+    assert output["ready_for_install"] is True
+    assert output["artifact"] == license_file.read_text(encoding="utf-8")
+    assert output["verification"]["state"] == "active"
+    assert "license/install" in output["next_step"]
+
+
 def test_verify_reports_active_licence(
     license_file: Path, key_set_file: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

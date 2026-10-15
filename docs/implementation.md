@@ -44,9 +44,9 @@ Still open and **not** assumed: Q-01, Q-02, Q-03 (no HTTP endpoints built yet), 
 | 7 | [#8](https://github.com/Apporine/relyxus-backend/pull/8) `feat/license-key-set-document` | Versioned trusted key-set file format + schema + loader | LIC-6.04, DEP-23.01, TSD-23.04 | merged |
 | 8 | [#30](https://github.com/Apporine/relyxus-backend/pull/30) `feat/license-cli-inspect-verify` | `relyxus license inspect\|verify` | LIC-15.03, DEP-23.02 | merged |
 | 9 | `feat/license-store` | install/replace/status, Superseded history, downgrade/replay protection | LIC-7.07, LIC-12.03, LIC-17.02, DEP-23.07 | merged (API A14) |
-| 10 | `feat/api-license-key-set-document-loader` | API loads trusted key-set document v1 for runtime verify | LIC-10.01, DEP-23.01, MPS-29.04 | in review |
-| 11 | `feat/license-connected-refresh` | Outbound signed status client, cache, outage handling | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | planned (Licensing phase 5) |
-| 12 | `feat/license-airgap-import` | Offline import/renewal tooling | LIC-11.02, LIC-19.04 | planned (Licensing phase 6) |
+| 10 | [#31](https://github.com/Apporine/relyxus-backend/pull/31) `feat/api-license-key-set-document-loader` | API loads trusted key-set document v1 for runtime verify | LIC-10.01, DEP-23.01, MPS-29.04 | merged |
+| 11 | [#37](https://github.com/Apporine/relyxus-backend/pull/37) `feat/flic-connected-refresh-airgap-import` | Signed status snapshots, outbound fetch, cache + outage grace on `GET /license/status` | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | in review |
+| 12 | [#37](https://github.com/Apporine/relyxus-backend/pull/37) `feat/flic-connected-refresh-airgap-import` | `relyxus license import` — offline verify + install-ready artifact JSON | LIC-11.02, LIC-19.04 | in review |
 
 GitHub PR #7 was a temporary CI diagnostic, closed unmerged.
 
@@ -60,6 +60,11 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 - **PR 4 — 2026-10-14** — `LicensePayload` v1 (closed schema; lowercase UUIDs; UTC `…Z` second-precision timestamps; deployment bindings with production/non_production/disaster_recovery allowances; sorted unique product-namespaced entitlements; namespaced non-negative limits; support tier; cross-field date/duplicate/namespace rules), `parse_payload` (strict parse → canonical-bytes check → schema version → schema), `LicenseEnvelope` v1 + `parse_envelope`, typed verification errors with stable codes, validation messages that never echo input values, JSON Schemas exported to `packages/schemas/licensing/` with a drift test. Pydantic 2 added; mypy pydantic plugin enabled. **Covered:** LIC-5.01, LIC-5.02, LIC-5.04 (closed schema), LIC-12.01, LIC-12.02, MPS-29.05, MPS-29.06, MP-19.01, DEP-23.01 (`license.schema.json` source). **Results:** ruff check/format pass, mypy strict pass, pytest 103 passed.
 - **PR 5 — 2026-10-14** — Strict unpadded base64url (single valid encoding); `TrustedKey`/`TrustedKeySet` (P-256 public keys only, private PEM refused, environment tag, UTC signing window, duplicate/empty set refused); `authenticate_envelope` (supported algorithm → known key → matching environment → algorithm/key consistency → ECDSA-SHA256 over exact payload bytes). Golden vector `tests/vectors/golden-license-v1.json` (public key only; signing key discarded). Test signing helpers in `tests/signing_support.py` with per-session generated keys. **Covered:** LIC-6.03 (non-prod key never verifies prod), LIC-6.04 + MPS-29.16 (rotation overlap), LIC-19.01 (signature golden vector), MPS-29.15 (public key set only, private key refused), MPS-29.17 (tampered payload, malformed envelope, unsupported algorithm), TSD-23.04, TSD-23.07, TSD-23.11 (unknown key IDs), MP-14.01. **Results:** pre-commit all hooks Passed (ruff, format, mypy strict, pytest 135 passed, gitleaks).
 - **PR 6 — 2026-10-14** — `LicenseVerifier.verify(artifact, now)`: size cap → envelope → signature → canonical payload → product/customer/deployment binding → key signing window → `not_before` with configurable clock-skew tolerance → state. `LicenseState` enum with all seven LIC §7 states; offline evaluation yields Active/Grace/Expired only; provisional grace registry (`standard-30d`). `VerifiedLicense` exposes matched deployment binding (production/non-production/DR), grace end, `has_entitlement`, `get_limit`. Explicit clock (naive `now` refused). **Covered:** LIC-2.04 (no network), LIC-2.05 + MPS-29.04 + DEP-23.08 (expiry is a state, not an error), LIC-7.02–7.04, LIC-12.01, LIC-12.02 (allowance surfaced), LIC-13.02–13.03 (entitlement/limit read API), LIC-19.02 (tamper, expiry, clock skew, wrong customer/deployment, key rotation), TSD-23.14 (positive, tampered, expired, not-yet-valid, wrong-customer, wrong-deployment, wrong-key, rotated-key), MPS-29.08, MPS-29.11 (local verification), MPS-29.17. **Not covered yet:** enforcement of what Grace/Expired restrict (Q-07a), Suspended/Revoked (PR 10), Superseded/downgrade protection (PR 8). **Results:** pre-commit all hooks Passed; pytest 161 passed; coverage of `apporine_licensing` 99% (uncovered: schema-writer entry point, one unreachable algorithm-mismatch branch).
+- **PR 31 — 2026-10-14** — API runtime loads `RELYXUS_LICENSE_TRUSTED_KEY_SET_PATH` via `load_trusted_key_set_file`; licence verify/install/status use the same offline pipeline as the CLI. **Covered:** LIC-10.01, DEP-23.01, MPS-29.04. **Results:** merged on `develop` with CI (incl. migration heads).
+- **PR 37 — 2026-10-15** — `apporine_licensing.status_snapshot` (signed commercial status payload v1), `connected_refresh` (cache TTL + outage grace, merge rules), API optional `RELYXUS_LICENSE_STATUS_URL` fetch with in-memory verified cache, `LicenseStatusView.connected_refresh_source`, contract **0.5.2**. **Covered:** LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03. **Results:** ruff/mypy pass; pytest 281 passed (53 DB integration skipped locally).
+- **PR 37 (continued) — 2026-10-15** — `relyxus license import` verifies offline and prints JSON with `ready_for_install`, exact `artifact` bytes, verification summary and API install next step. **Covered:** LIC-11.02, LIC-19.04. **Results:** CLI tests pass; no network.
+
+**F-LIC tracker status:** items **#1–#10 merged** on `develop`; **#11–#12 in review** ([#37](https://github.com/Apporine/relyxus-backend/pull/37)). Downgrade guard, richer status, CLI key-set validate and `TrustedKeySet.key_ids()` shipped via PRs **#32–#36** (see API rows A19–A21 below).
 
 ---
 
@@ -69,28 +74,11 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
-| A1 | `feat/api-service-skeleton` | Settings (fail fast), app factory, `/health`, `/ready`, `/docs`, `/docs.json`, OpenAPI export + drift test, ADR-0003 | TSD-11.01 (probes), MP-28.01, MPS-22A.03 (adapted), MP-9.01, context.md §6/§11 | in review |
-| A2 | `feat/api-error-handling` | RFC 9457 problem details, typed errors, correlation-ID middleware, structured JSON logging | MPS-22A.04, MP-34.01, MP-28.01, context.md §8/§12 | in review |
-| A3 | `feat/api-envelope-pagination` | Success envelope with meta, cursor pagination primitives | MPS-22A.04, context.md §5 | in review |
-| A4 | `feat/api-database-foundation` | SQLAlchemy 2, psycopg 3, Alembic, PostgreSQL in CI/Compose, base model, transactions, DB readiness | MP-25.01, TSD-7.01, context.md §9 | in review |
-| A5 | `feat/api-tenancy-rls` | Organisation, Workspace, RLS policies, isolation tests | MP-10.01, MPS-28.08, TSD-22.02/22.03 | in review |
-| A6a | `feat/api-access-token-auth` | Keycloak OIDC access-token verification, 401 challenges, `GET /api/v1/me` | MPS-14.10 (token side), TSD-9.01, ADR-0003 §7, context.md §10 | in review |
-| A6b | `feat/api-workspace-membership` | Users, workspace memberships and roles; tenant context from verified membership | MP-10.01, MPS-14.01–14.09, MPS-20.04/20.06, Q-18 | in review |
-| A6c | `feat/api-workspace-endpoints` | `GET /api/v1/me/workspaces` (workspace picker), `GET /api/v1/workspaces/current` | MPS-15.02 (workspace picker), MPS-14.01 | in review |
-| A7 | `feat/api-audit-hash-chain` | Append-only `audit_events`, SHA-256 hash chain per workspace/org, verify | MPS-14.16, MPS-20.25, MPS-28.23, ADR-0003 §6, Q-19 | in review |
-| A8 | `feat/api-audit-endpoints` | `GET /api/v1/audit-events`, chain verification HTTP | MPS-14.16, ADR-0003 §6 | in review |
-| A9 | `feat/api-idempotency-keys` | `Idempotency-Key` store, idempotent `POST /api/v1/audit-events` | MPS-22A.05, ADR-0003 §5 | in review |
-| A10 | `feat/api-etag-preconditions` | Weak `ETag` + `If-Match` (412) on `GET /workspaces/current` | MPS-22A.06, ADR-0003 §5 | in review |
-| A11 | `feat/api-me-provisioned` | `GET /me` includes DB user id, status, `is_provisioned` | MPS-14.10 | in review |
-| A12 | `feat/api-shared-constants` | Cross-cutting constants in `shared/constants.py` | context.md §2 | in review |
-| A13 | `feat/api-audit-role-gates` | Audit list/verify require audit-capable roles | MPS-14.02 | in review |
-| A14 | `feat/api-license-store` | Org licence install/status HTTP (`organization_licenses`) | LIC-7.07, DEP-23.07 | in review |
-| A15 | `feat/api-prometheus-metrics` | `GET /metrics` Prometheus text exposition | TSD-11.01, MP-28.01 | in review |
-| — | `feat/dev-keycloak-compose` | Keycloak 26 in Compose + realm import for local OIDC | TSD-9.01, Q-21 | in review |
-| — | `chore/policy-opa-skeleton` | `policy/` placeholder for future OPA bundles | MPS-22.x | in review |
-| A16 | `feat/api-org-customer-id` | `organizations.customer_id` + licence install binding | LIC-17.02, MPS-29.06 | in review |
-| A17 | `feat/api-license-readiness-probe` | Optional `commercial_license` readiness probe | LIC-10.01, MPS-6A.11 | in review |
-| A18 | `feat/api-policy-engine-stub` | `GET /policy/engine` stub status | MPS-22.x | in review |
+| A1–A18 | [#29](https://github.com/Apporine/relyxus-backend/pull/29) (squash) | Full API foundation stack A1–A18 plus dev Keycloak compose and `policy/` placeholder | (see progress log A1–A18) | merged |
+| A19 | [#31](https://github.com/Apporine/relyxus-backend/pull/31) | Trusted key-set document path for API licence runtime | LIC-10.01, DEP-23.01 | merged |
+| A20 | [#33](https://github.com/Apporine/relyxus-backend/pull/33) | Licence downgrade guard; status includes entitlements and `grace_ends_at` | LIC-17.02, LIC-13.x | merged |
+| A21 | [#34](https://github.com/Apporine/relyxus-backend/pull/34) | `GET /api/v1/meta` (contract version, environment) | MP-28.01 | merged |
+| A22 | [#37](https://github.com/Apporine/relyxus-backend/pull/37) | Connected status refresh on `GET /license/status` (optional env URL) | LIC-10.02, LIC-10.03 | in review (with F-LIC #11) |
 
 ### Progress log
 
@@ -276,6 +264,9 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 - **A17 — 2026-10-14** — `RELYXUS_LICENSE_READINESS_ORGANIZATION_ID` adds `commercial_license` to `/ready`.
 
 - **A18 — 2026-10-14** — `GET /api/v1/policy/engine` reports stub mode and optional bundle path. Contract **0.5.0**.
+- **Squash #29 — 2026-10-14** — Merged the stacked API foundation (A1–A18), Keycloak compose, policy skeleton onto `develop` after CI (lint, types, tests, secret scan, **migration heads**).
+- **A19–A21 — 2026-10-14** — Follow-up PRs #31, #33, #34 on `develop` (key-set loader, downgrade guard + richer licence status, `/meta`). Contract **0.5.1**.
+- **A22 — 2026-10-15** — Connected refresh wiring; OpenAPI **0.5.2** (`connected_refresh_source` on licence status). **PR #37**.
 
 ---
 

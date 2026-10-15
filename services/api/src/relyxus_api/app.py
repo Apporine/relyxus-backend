@@ -22,6 +22,7 @@ from relyxus_api.modules.license.key_set_loader import load_trusted_key_set_file
 from relyxus_api.modules.license.service import (
     LicenseRuntime,
     LicenseService,
+    LicenseStatusCache,
     NoLicenseInstalledError,
 )
 from relyxus_api.modules.policy.controller import router as policy_router
@@ -44,7 +45,7 @@ from relyxus_api.shared.observability.logging import (
 
 API_TITLE = "Relyxus API"
 # Bump on every contract change (context.md §6).
-API_CONTRACT_VERSION = "0.5.1"
+API_CONTRACT_VERSION = "0.5.2"
 DATABASE_PROBE_NAME = "postgresql"
 ROW_LEVEL_SECURITY_PROBE_NAME = "postgresql_row_level_security"
 LICENSE_READINESS_PROBE_NAME = "commercial_license"
@@ -82,6 +83,7 @@ def create_app(settings: Settings) -> FastAPI:
         clock_leeway_seconds=settings.oidc_clock_leeway_seconds,
     )
     app.state.license_runtime = _build_license_runtime(settings)
+    app.state.license_status_cache = LicenseStatusCache()
     app.state.health_service = HealthService(_build_probes(settings, database_engine, app))
     app.add_middleware(CorrelationIdMiddleware)
     if settings.environment is not Environment.PRODUCTION:
@@ -108,16 +110,14 @@ def _build_license_runtime(settings: Settings) -> LicenseRuntime | None:
     ):
         return None
     key_set = load_trusted_key_set_file(Path(settings.license_trusted_key_set_path))
-    verifier = LicenseVerifier(
-        key_set=key_set,
-        installation=InstallationIdentity(
-            product_id="relyxus",
-            customer_id=settings.license_customer_id,
-            deployment_id=settings.license_deployment_id,
-            environment=KeyEnvironment(settings.license_key_environment),
-        ),
+    installation = InstallationIdentity(
+        product_id="relyxus",
+        customer_id=settings.license_customer_id,
+        deployment_id=settings.license_deployment_id,
+        environment=KeyEnvironment(settings.license_key_environment),
     )
-    return LicenseRuntime(verifier=verifier)
+    verifier = LicenseVerifier(key_set=key_set, installation=installation)
+    return LicenseRuntime(verifier=verifier, key_set=key_set, installation=installation)
 
 
 def _build_probes(

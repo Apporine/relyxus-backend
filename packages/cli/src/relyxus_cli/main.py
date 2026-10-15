@@ -23,7 +23,12 @@ from apporine_licensing.errors import (
 )
 from apporine_licensing.key_set import KeyEnvironment
 from relyxus_cli.key_set_commands import validate_key_set_file
-from relyxus_cli.license_commands import VerifyRequest, inspect_license, verify_license
+from relyxus_cli.license_commands import (
+    VerifyRequest,
+    import_license,
+    inspect_license,
+    verify_license,
+)
 
 EXIT_OK = 0
 EXIT_LICENSE_REJECTED = 1
@@ -60,6 +65,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = validate_key_set_file(arguments.file)
         elif arguments.license_command == "inspect":
             result = inspect_license(arguments.file)
+        elif arguments.license_command == "import":
+            result = import_license(
+                VerifyRequest(
+                    license_file=arguments.file,
+                    key_set_file=arguments.key_set,
+                    product_id=arguments.product_id,
+                    customer_id=arguments.customer_id,
+                    deployment_id=arguments.deployment_id,
+                    environment=arguments.environment,
+                    evaluated_at=arguments.at or datetime.now(UTC),
+                )
+            )
         else:
             result = verify_license(
                 VerifyRequest(
@@ -134,6 +151,25 @@ def _build_parser() -> argparse.ArgumentParser:
         default=KeyEnvironment.PRODUCTION,
     )
     verify_parser.add_argument(
+        "--at", type=_parse_utc, help="Evaluate at this UTC time instead of now"
+    )
+
+    import_parser = license_commands.add_parser(
+        "import",
+        help="Verify offline and emit an install-ready artefact for air-gapped renewal",
+    )
+    import_parser.add_argument("--file", type=Path, required=True)
+    import_parser.add_argument("--key-set", type=Path, required=True)
+    import_parser.add_argument("--customer-id", required=True)
+    import_parser.add_argument("--deployment-id", required=True)
+    import_parser.add_argument("--product-id", default=DEFAULT_PRODUCT_ID)
+    import_parser.add_argument(
+        "--environment",
+        type=KeyEnvironment,
+        choices=list(KeyEnvironment),
+        default=KeyEnvironment.PRODUCTION,
+    )
+    import_parser.add_argument(
         "--at", type=_parse_utc, help="Evaluate at this UTC time instead of now"
     )
     return parser

@@ -71,7 +71,7 @@ def test_install_rejects_older_revision() -> None:
     repository = MagicMock()
     repository.find_current = AsyncMock(return_value=current)
     service = LicenseService(repository=repository)
-    runtime = LicenseRuntime(verifier=MagicMock())
+    runtime = LicenseRuntime(verifier=MagicMock(), key_set=MagicMock(), installation=MagicMock())
 
     service._verify_artifact = MagicMock(return_value=_verified(revision=2))  # type: ignore[method-assign]
 

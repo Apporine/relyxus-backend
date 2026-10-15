@@ -52,6 +52,25 @@ def make_trusted_key(
     )
 
 
+def sign_status_snapshot(
+    private_key: ec.EllipticCurvePrivateKey,
+    key_id: str,
+    **payload_fields: object,
+) -> bytes:
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "license_id": LICENSE_ID,
+        "revision": 1,
+        "customer_id": CUSTOMER_ID,
+        "product_id": "relyxus",
+        "deployment_id": DEPLOYMENT_ID,
+        "commercial_status": "active",
+        "effective_at": "2027-01-15T12:00:00Z",
+    }
+    payload.update(payload_fields)
+    return sign_envelope(canonicalize(payload), private_key, key_id)
+
+
 def public_key_pem(private_key: ec.EllipticCurvePrivateKey) -> str:
     return (
         private_key.public_key()

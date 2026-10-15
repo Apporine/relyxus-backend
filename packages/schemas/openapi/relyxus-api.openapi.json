@@ -319,6 +319,18 @@
       },
       "LicenseStatusView": {
         "properties": {
+          "connected_refresh_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When connected refresh is configured: live fetch succeeded, or cache used after outage.",
+            "title": "Connected Refresh Source"
+          },
           "entitlements": {
             "items": {
               "type": "string"
@@ -958,7 +970,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.5.1"
+    "version": "0.5.2"
   },
   "openapi": "3.1.0",
   "paths": {

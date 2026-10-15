@@ -284,7 +284,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | # | Branch | Scope | Requirement IDs | Status |
 |---|---|---|---|---|
 | I1 | [#38](https://github.com/Apporine/relyxus-backend/pull/38) `feat/incident-lifecycle-and-table` | ADR-0004, lifecycle validator, `incidents` table + RLS (migration 0009) | MPS-8A.07, MPS-8A.22, MPS-23.05 | merged |
-| I2 | `feat/incident-declare` | `POST /api/v1/incidents` declare (triage → investigating) | MPS-8A.08 | planned |
+| I2 | `feat/incident-declare` | `POST /api/v1/incidents` declare or draft, `GET /api/v1/incidents/{id}`, declaration timestamps (migration 0010), audit in-transaction | MPS-8A.08 (partial), MPS-8A.20, MPS-8A.22, MPS-22A.05, MPS-15.04 | in review |
 | I3 | (planned) | Lifecycle transition endpoint + audit events | MPS-8A.09–8A.16, MPS-8A.22 | planned |
 
 ---
@@ -298,3 +298,12 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
 - **PR 30 — 2026-10-14** — Same as PR 8 below, rebased onto `develop` and merged after CI (incl. **migration heads** required check).
 
 - **PR 8 — 2026-10-14** — New workspace package `relyxus-cli` (console script `relyxus`, stdlib argparse). `relyxus license inspect --file` decodes and schema-checks a licence, explicitly marked `signature_verified: false`. `relyxus license verify --file --key-set --customer-id --deployment-id [--product-id] [--environment] [--at]` runs the offline verifier and prints the state, binding, validity and entitlements as JSON. Failures go to stderr as JSON `{code, message, next_action}` with exit codes 1 (licence rejected), 2 (usage), 3 (key-set configuration), 4 (file unreadable). `install`, `status` and `replace` are intentionally absent until the licence store exists (DEP-7.03). **Covered:** LIC-15.03 / DEP-23.02 (inspect, verify), DEP-7.02 (non-zero exit, plain-language explanation, machine-readable code, safe next action), LIC-11.02 (operator can verify fully offline). **Results:** ruff, mypy strict, pytest 190 passed; manual run of `uv run relyxus license verify` against the golden licence: Active (exit 0) and wrong deployment (exit 1).
+
+- **I2 — 2026-10-15** — Declare and read incidents.
+  - **`POST /api/v1/incidents`:** requires `Idempotency-Key`. By default it declares the incident (triage → investigating, validated by ADR-0004 rules); `is_declared: false` saves a triage draft (MPS-15.04 "Save draft"). Allowed roles: owner, admin, incident commander, responder (MPS-14); others get 403 `INSUFFICIENT_WORKSPACE_ROLE`. An audit event (`incident.declared` / `incident.drafted`) is appended in the same transaction. Returns 201 with `Location`.
+  - **`GET /api/v1/incidents/{id}`:** filtered by the open workspace as well as RLS (whose policy is org-level), so sibling workspaces of the same org return 404 like unknown IDs.
+  - **Migration `0010`:** `declared_at`, `declared_by_user_id`, and a CHECK that any incident past triage has `declared_at`.
+  - **Contract version 0.6.0.**
+  - **Not covered yet (spec gaps until those catalogues exist):** MPS-8A.08 also requires incident type and affected service at declaration; workspace display number (MPS-20.12); visibility modes (MPS-8A.23); `incident.declared.v1` domain event (MPS-22A.07).
+
+  **Results:** ruff and mypy strict pass; pytest 364 passed against local PostgreSQL. The one other failure, `test_status_snapshot.py::test_unsigned_or_tampered_snapshot_is_rejected`, is a pre-existing flaky test on `develop`, fixed in its own PR.

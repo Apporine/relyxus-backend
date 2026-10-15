@@ -31,6 +31,10 @@ class IncidentView(BaseModel):
 
     id: uuid.UUID = Field(examples=["0192f0c4-7d1e-7a3b-9c2d-5e6f7a8b9c0d"])
     workspace_id: uuid.UUID = Field(examples=["0192f0c4-0000-7000-8000-0000000000a1"])
+    number: int = Field(
+        description="Per-workspace display number (e.g. shown as INC-42); not an identifier.",
+        examples=[42],
+    )
     title: str = Field(examples=["Card authorisations failing in EU"])
     severity: IncidentSeverity = Field(examples=[IncidentSeverity.SEV1])
     lifecycle_state: IncidentLifecycleState = Field(examples=[IncidentLifecycleState.INVESTIGATING])
@@ -49,6 +53,7 @@ class IncidentView(BaseModel):
         return cls(
             id=incident.id,
             workspace_id=incident.workspace_id,
+            number=incident.number,
             title=incident.title,
             severity=IncidentSeverity(incident.severity),
             lifecycle_state=IncidentLifecycleState(incident.lifecycle_state),

@@ -57,6 +57,8 @@ class Incident(RecordColumns, Base):
         ),
         # Target of the composite merge foreign key below.
         UniqueConstraint("id", "workspace_id", name="uq_incidents_id_workspace_id"),
+        UniqueConstraint("workspace_id", "number", name="uq_incidents_workspace_id_number"),
+        CheckConstraint("number >= 1", name="number_positive"),
         ForeignKeyConstraint(
             ["merged_into_incident_id", "workspace_id"],
             ["incidents.id", "incidents.workspace_id"],
@@ -78,6 +80,8 @@ class Incident(RecordColumns, Base):
         ForeignKey("organizations.id", ondelete="RESTRICT")
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column()
+    # Per-workspace display number (MPS-20.12), e.g. shown as INC-42. Never an identifier.
+    number: Mapped[int]
     lifecycle_state: Mapped[str] = mapped_column(String(32))
     severity: Mapped[str] = mapped_column(String(8))
     title: Mapped[str] = mapped_column(String(TITLE_MAX_LENGTH))

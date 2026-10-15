@@ -71,6 +71,7 @@ async def _seed(session: AsyncSession) -> None:
                 id=incident_id,
                 organization_id=org_id,
                 workspace_id=workspace_id,
+                number=1,
                 lifecycle_state="triage",
                 severity="sev3",
                 title="seeded",
@@ -232,6 +233,7 @@ def test_database_rejects_declared_states_without_declaration_time(database_url:
             Incident(
                 organization_id=ORG_A,
                 workspace_id=WORKSPACE_A1,
+                number=9999,
                 lifecycle_state="investigating",
                 severity="sev2",
                 title="x",

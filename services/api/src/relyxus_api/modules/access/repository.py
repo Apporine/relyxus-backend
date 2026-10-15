@@ -9,6 +9,7 @@ from sqlalchemy import Row, Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.access.model import User, WorkspaceMembership
+from relyxus_api.modules.team.model import TeamMember, TeamRoleGrant
 from relyxus_api.modules.tenancy.model import Organization, Workspace
 from relyxus_api.shared.db.transaction_settings import set_transaction_settings
 
@@ -62,6 +63,18 @@ class AccessRepository:
             )
         )
         return list(memberships)
+
+    async def list_team_roles(
+        self, session: AsyncSession, user_id: uuid.UUID, workspace_id: uuid.UUID
+    ) -> set[str]:
+        """Roles the user inherits from their teams in this workspace (Q-18). Needs the user
+        context: RLS reveals the user's own team memberships and those teams' grants."""
+        roles = await session.scalars(
+            select(TeamRoleGrant.role)
+            .join(TeamMember, TeamMember.team_id == TeamRoleGrant.team_id)
+            .where(TeamMember.user_id == user_id, TeamRoleGrant.workspace_id == workspace_id)
+        )
+        return set(roles)
 
     async def list_workspaces_for_user(
         self,

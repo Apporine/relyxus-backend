@@ -289,6 +289,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I4 | `feat/incident-list` | `GET /api/v1/incidents` newest first, state/severity filters, cursor paging; index (migration 0012) | MPS-15.02, MPS-22A.04 | in review |
 | I5 | `feat/incident-number` | Per-workspace incident number (display key), concurrency-safe allocation, backfill (migration 0013) | MPS-20.12, ADR-0003 §4 | in review |
 | I6 | `feat/incident-update` | `PATCH /api/v1/incidents/{id}` title/severity, reason for severity overrides, If-Match, audited | MPS-8.06, MPS-22A.05, MPS-8A.22 | in review |
+| I7 | `feat/incident-roles` | Incident role assignments (IC, comms lead, scribe): GET/PUT/DELETE, member check, audited (migration 0014) | MPS-11.04, MPS-14.06, MPS-20.12 (roles) | in review |
 
 ---
 
@@ -360,3 +361,18 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Also in this stack:** I5's concurrency test now races real connections instead of one shared TestClient across threads, which could hang.
 
   **Results:** pytest 395 passed against local PostgreSQL; ruff and mypy strict pass.
+
+- **I7 — 2026-10-15** — Incident role assignments.
+  - **Endpoints:**
+    - `GET /api/v1/incidents/{id}/roles`
+    - `PUT /api/v1/incidents/{id}/roles/{role}` with `{user_id}` (assign or replace; re-assigning the same holder is a no-op)
+    - `DELETE /api/v1/incidents/{id}/roles/{role}` (idempotent 204)
+  - **Roles:** `incident_commander`, `communications_lead`, `scribe`.
+  - **Rules:** only an incident commander or owner can change roles (MPS-14.06); the assignee must be a workspace member; roles of terminal incidents are frozen.
+  - **Audit:** `incident.role_assigned` / `incident.role_unassigned`.
+  - **Migration `0014`:** one row per incident and role, a composite foreign key keeping it in the incident's workspace, forced RLS.
+  - **Layering:** new `IncidentRoleRepository`; `WorkspaceAccessService.is_workspace_member`.
+  - **Contract version 0.11.0.**
+  - **Not yet:** commander handoff package and acknowledgement (MPS-11.23–24); type default roles (MPS-8A.01).
+
+  **Results:** pytest 405 passed against local PostgreSQL; ruff and mypy strict pass.

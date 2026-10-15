@@ -81,6 +81,13 @@ class WorkspaceAccessService:
         await self._repository.clear_user_context(session)
         return access
 
+    async def is_workspace_member(
+        self, session: AsyncSession, user_id: uuid.UUID, workspace_id: uuid.UUID
+    ) -> bool:
+        """Whether the user holds any role in the workspace. Needs the tenant context."""
+        grants = await self._repository.list_workspace_grants(session, user_id, workspace_id)
+        return bool(grants)
+
     async def list_my_workspaces(
         self, session: AsyncSession, principal: AuthenticatedPrincipal, page_request: PageRequest
     ) -> Page[WorkspaceListing]:

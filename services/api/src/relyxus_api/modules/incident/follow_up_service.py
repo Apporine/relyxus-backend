@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from relyxus_api.modules.access.repository import AccessRepository
 from relyxus_api.modules.access.service import WorkspaceAccess, WorkspaceAccessService
 from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
-from relyxus_api.modules.incident.cursor import decode_id_cursor
 from relyxus_api.modules.incident.follow_up_model import (
     FINAL_FOLLOW_UP_STATUSES,
     FollowUpSource,
@@ -34,6 +33,7 @@ from relyxus_api.modules.incident.repository import IncidentRepository
 from relyxus_api.modules.incident.service import IncidentNotFoundError
 from relyxus_api.shared.errors.app_errors import ConflictError, NotFoundError, ValidationFailedError
 from relyxus_api.shared.http.etag import format_weak_etag
+from relyxus_api.shared.http.id_cursor import decode_id_cursor
 from relyxus_api.shared.http.pagination import Page, PageRequest, build_page
 from relyxus_api.shared.http.preconditions import assert_if_match
 from relyxus_api.shared.utils.ids import new_uuid7

@@ -304,6 +304,16 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 
 ---
 
+## Feature F-STRUCTURE — Teams, services and incident visibility (MPS-14.01, §20, MPS-8A.23)
+
+**Scope:** the workspace structure below the workspace (teams, services) that incidents, ownership, role grants (Q-18) and visibility build on.
+
+| # | Branch | Scope | Requirement IDs | Status |
+|---|---|---|---|---|
+| C1 | `feat/teams` | Teams and team members: create/list/get/rename, add/remove members (owners and admins), audited (migration 0024) | MPS-14.01, MPS-14.02 (admin manages teams), MPS-20.05 (partial) | in review |
+
+---
+
 ## Other features
 
 Product features beyond F-INCIDENT still depend on resolving remaining register section E questions where they block contracts (Q-11 triage detail, Q-08 entitlements catalogue, etc.).
@@ -533,3 +543,27 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** choosing the root cause from the Brain's top three (MPS-13.04); analytics update on close.
 
   **Results:** ruff and mypy strict pass; pytest 488 passed against local PostgreSQL.
+
+- **C1 — 2026-10-15** — Teams.
+  - **Tables `teams`, `team_members`** (migration 0024):
+    - Teams have a composite FK to their workspace and a key unique per workspace.
+    - Members have a composite FK to the team's workspace and are unique per team.
+    - Forced RLS on both.
+  - **Endpoints:**
+    - `POST /api/v1/teams` (`Idempotency-Key`; `key` is the stable ID and never changes)
+    - `GET /teams`, `GET /teams/{id}` (ETag)
+    - `PATCH /teams/{id}` (name and description; `If-Match`)
+    - `GET /teams/{id}/members`
+    - `PUT` / `DELETE /teams/{id}/members/{user_id}`
+  - **Rules:**
+    - Owners and admins change teams (new `WorkspaceStructureDependency`, MPS-14.02); every member reads them.
+    - Team members must be workspace members.
+    - Changes are audited (`team.*`).
+  - `decode_id_cursor` moved to `shared/http/id_cursor.py` for reuse.
+  - **Contract version 0.23.0.**
+  - **Not covered yet:**
+    - Team role grants (C2, Q-18).
+    - On-call schedules and escalation policies (MPS-20.05, 11.07).
+    - Archiving teams.
+
+  **Results:** ruff and mypy strict pass; pytest 495 passed against local PostgreSQL.

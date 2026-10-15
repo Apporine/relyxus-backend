@@ -63,3 +63,22 @@ async def require_incident_write_access(
 IncidentWriteWorkspaceDependency = Annotated[
     WorkspaceSession, Depends(require_incident_write_access, scope="function")
 ]
+
+
+# MPS-14.02: "Admin — users, teams, connectors, settings"; the owner can do everything.
+_WORKSPACE_STRUCTURE_ROLES = frozenset({WorkspaceRole.OWNER, WorkspaceRole.ADMIN})
+
+
+async def require_workspace_structure_access(
+    workspace: WorkspaceSessionDependency,
+) -> AsyncIterator[WorkspaceSession]:
+    if not _WORKSPACE_STRUCTURE_ROLES.intersection(workspace.access.roles):
+        raise InsufficientWorkspaceRoleError(
+            "Only workspace owners and admins can change teams and services."
+        )
+    yield workspace
+
+
+WorkspaceStructureDependency = Annotated[
+    WorkspaceSession, Depends(require_workspace_structure_access, scope="function")
+]

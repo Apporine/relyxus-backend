@@ -1,4 +1,4 @@
-"""Shared cursor decoding for incident sub-resources ordered by UUIDv7 ID."""
+"""Cursor decoding for lists ordered by UUIDv7 ID (shared by every keyset-paged list)."""
 
 import uuid
 

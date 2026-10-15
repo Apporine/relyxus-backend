@@ -3,6 +3,7 @@
 from relyxus_api.modules.access.model import User, WorkspaceMembership
 from relyxus_api.modules.audit.model import AuditEvent
 from relyxus_api.modules.catalog.model import CatalogService
+from relyxus_api.modules.configuration.model import ConfigurationVersion
 from relyxus_api.modules.idempotency.model import IdempotencyRecord
 from relyxus_api.modules.incident.access_grant_model import IncidentAccessGrant
 from relyxus_api.modules.incident.affected_service_model import IncidentAffectedService
@@ -22,6 +23,7 @@ from relyxus_api.modules.tenancy.model import Organization, Workspace
 __all__ = [
     "AuditEvent",
     "CatalogService",
+    "ConfigurationVersion",
     "IdempotencyRecord",
     "Incident",
     "IncidentAccessGrant",

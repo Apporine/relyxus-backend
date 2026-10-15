@@ -21,6 +21,11 @@ from relyxus_api.modules.audit.model import ActorType, AuditOutcome
 from relyxus_api.modules.audit.service import AuditService, NewAuditEvent
 from relyxus_api.modules.catalog.model import CatalogService, ServiceTier
 from relyxus_api.modules.catalog.repository import CatalogRepository, ServiceListQuery
+from relyxus_api.modules.configuration.model import ConfigurationObjectType
+from relyxus_api.modules.configuration.service import (
+    ConfigurationChange,
+    ConfigurationVersionService,
+)
 from relyxus_api.modules.team.repository import TeamRepository
 from relyxus_api.shared.errors.app_errors import ConflictError, NotFoundError, ValidationFailedError
 from relyxus_api.shared.http.etag import format_weak_etag
@@ -94,6 +99,7 @@ class ServiceCatalog:
         self._repository = repository or CatalogRepository()
         self._teams = teams or TeamRepository()
         self._audit = audit or AuditService()
+        self._versions = ConfigurationVersionService()
 
     async def create(
         self, session: AsyncSession, access: WorkspaceAccess, new_service: NewCatalogService
@@ -118,6 +124,13 @@ class ServiceCatalog:
         )
         await self._record(
             session, access, service.id, SERVICE_CREATED_ACTION, None, _snapshot(service)
+        )
+        await self._versions.record(
+            session,
+            access,
+            ConfigurationChange(
+                ConfigurationObjectType.SERVICE, service.id, None, _snapshot(service)
+            ),
         )
         return service
 
@@ -179,6 +192,11 @@ class ServiceCatalog:
             SERVICE_UPDATED_ACTION,
             {key: before[key] for key in changed},
             {key: after[key] for key in changed},
+        )
+        await self._versions.record(
+            session,
+            access,
+            ConfigurationChange(ConfigurationObjectType.SERVICE, service.id, before, after),
         )
         return service
 

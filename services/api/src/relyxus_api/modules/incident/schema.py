@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.modules.incident.model import TITLE_MAX_LENGTH, Incident, IncidentSeverity
+from relyxus_api.modules.incident.role_model import IncidentRole, IncidentRoleAssignment
 
 IncidentTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=TITLE_MAX_LENGTH)
@@ -107,3 +108,27 @@ class UpdateIncidentRequest(BaseModel):
         description="Required when severity changes (human override, MPS-8.06).",
         examples=["Failed payments now above 500 a minute"],
     )
+
+
+class AssignIncidentRoleRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    user_id: uuid.UUID = Field(examples=["0192f0c4-0000-7000-8000-0000000000f1"])
+
+
+class IncidentRoleView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    role: IncidentRole = Field(examples=[IncidentRole.INCIDENT_COMMANDER])
+    user_id: uuid.UUID = Field(examples=["0192f0c4-0000-7000-8000-0000000000f1"])
+    assigned_by_user_id: uuid.UUID = Field(examples=["0192f0c4-0000-7000-8000-0000000000f2"])
+    assigned_at: datetime = Field(examples=["2026-10-15T08:01:00Z"])
+
+    @classmethod
+    def from_assignment(cls, assignment: IncidentRoleAssignment) -> "IncidentRoleView":
+        return cls(
+            role=IncidentRole(assignment.role),
+            user_id=assignment.user_id,
+            assigned_by_user_id=assignment.assigned_by_user_id,
+            assigned_at=assignment.updated_at,
+        )

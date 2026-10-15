@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Query, Request, Response
+from fastapi import APIRouter, Header, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
@@ -10,8 +10,12 @@ from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceD
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
+from relyxus_api.modules.incident.role_model import IncidentRole
+from relyxus_api.modules.incident.role_service import IncidentRoleService
 from relyxus_api.modules.incident.schema import (
+    AssignIncidentRoleRequest,
     DeclareIncidentRequest,
+    IncidentRoleView,
     IncidentView,
     TransitionIncidentRequest,
     UpdateIncidentRequest,
@@ -216,3 +220,53 @@ async def update_incident(
         ),
     )
     return JSONResponse(content=_incident_body(incident), headers=_etag_headers(incident))
+
+
+@router.get(
+    "/incidents/{incident_id}/roles",
+    summary="List incident roles",
+    description="Current holders of the incident commander, communications lead and scribe roles.",
+    response_model=SuccessEnvelope[list[IncidentRoleView]],
+)
+async def list_incident_roles(
+    incident_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> SuccessEnvelope[list[IncidentRoleView]]:
+    assignments = await IncidentRoleService().list_roles(
+        workspace.session, workspace.access, incident_id
+    )
+    return wrap_success([IncidentRoleView.from_assignment(item) for item in assignments])
+
+
+@router.put(
+    "/incidents/{incident_id}/roles/{role}",
+    summary="Assign an incident role",
+    description=(
+        "Sets the current holder of one incident role (MPS-11.04), replacing any previous "
+        "holder. The assignee must be a member of this workspace. Only an incident commander "
+        "or owner may assign. Recorded in the workspace audit chain."
+    ),
+    response_model=SuccessEnvelope[IncidentRoleView],
+)
+async def assign_incident_role(
+    incident_id: uuid.UUID,
+    role: IncidentRole,
+    workspace: WorkspaceSessionDependency,
+    body: AssignIncidentRoleRequest,
+) -> SuccessEnvelope[IncidentRoleView]:
+    assignment = await IncidentRoleService().assign(
+        workspace.session, workspace.access, incident_id, role, body.user_id
+    )
+    return wrap_success(IncidentRoleView.from_assignment(assignment))
+
+
+@router.delete(
+    "/incidents/{incident_id}/roles/{role}",
+    summary="Unassign an incident role",
+    description="Removes the role's holder. Idempotent: returns 204 even if nobody held it.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def unassign_incident_role(
+    incident_id: uuid.UUID, role: IncidentRole, workspace: WorkspaceSessionDependency
+) -> Response:
+    await IncidentRoleService().unassign(workspace.session, workspace.access, incident_id, role)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -408,6 +408,7 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **`POST /api/v1/incidents/{id}/timeline/notes`** (`Idempotency-Key` required): adds an `incident.note_added` event (subject type `incident_note`) to the timeline and the audit chain in one transaction. Text is trimmed, 1–4000 characters.
   - Notes are immutable like every timeline event; a correction is a new note. Refused with 409 `INCIDENT_NOT_EDITABLE` once the incident is closed, cancelled or merged; allowed while resolved (post-incident context).
   - Allowed roles: owner, admin, incident commander, responder (the incident-writing roles).
+  - **Contract version 0.14.0.**
   - **Not covered yet:** letting the incident's assigned scribe write notes when their workspace role is viewer; attachments and evidence links on notes.
 
   **Results:** ruff and mypy strict pass; pytest 427 passed against local PostgreSQL.

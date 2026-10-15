@@ -60,7 +60,8 @@ def parse_status_payload(payload_bytes: bytes) -> StatusSnapshotPayload:
     try:
         parsed = load_strict_json(payload_bytes)
     except CanonicalJsonError as error:
-        raise LicenseMalformedError(f"Status snapshot payload is not valid JSON: {error}") from error
+        message = f"Status snapshot payload is not valid JSON: {error}"
+        raise LicenseMalformedError(message) from error
     schema_version = parsed.get("schema_version")
     if isinstance(schema_version, bool) or schema_version not in SUPPORTED_SCHEMA_VERSIONS:
         raise UnsupportedSchemaVersionError("Status snapshot schema_version is not supported")

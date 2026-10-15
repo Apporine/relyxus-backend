@@ -9,13 +9,7 @@ from apporine_licensing.errors import CustomerMismatchError, SignatureInvalidErr
 from apporine_licensing.key_set import KeyEnvironment, TrustedKeySet
 from apporine_licensing.status_snapshot import CommercialStatus, verify_status_snapshot
 from apporine_licensing.verifier import InstallationIdentity
-from signing_support import (
-    CUSTOMER_ID,
-    DEPLOYMENT_ID,
-    PRODUCTION_KEY_ID,
-    make_trusted_key,
-    sign_status_snapshot,
-)
+from signing_support import CUSTOMER_ID, DEPLOYMENT_ID, PRODUCTION_KEY_ID, sign_status_snapshot
 
 INSTALLATION = InstallationIdentity(
     product_id="relyxus",

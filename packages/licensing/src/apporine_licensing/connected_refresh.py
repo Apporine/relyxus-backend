@@ -33,16 +33,17 @@ def merge_connected_state(
     """Apply a cached signed snapshot when fresh; never weaken offline safety on stale cache."""
     if cache is None:
         return offline_state
-    if cache.snapshot.payload.license_id != local_license_id:
-        return offline_state
-    if cache.snapshot.payload.revision < local_revision:
-        return offline_state
+    payload = cache.snapshot.payload
     age = now - cache.retrieved_at
-    if age > policy.cache_ttl + policy.outage_grace:
+    cache_usable = (
+        payload.license_id == local_license_id
+        and payload.revision >= local_revision
+        and age <= policy.cache_ttl + policy.outage_grace
+    )
+    if not cache_usable:
         return offline_state
-    status = cache.snapshot.payload.commercial_status
-    if status is CommercialStatus.REVOKED:
+    if payload.commercial_status is CommercialStatus.REVOKED:
         return LicenseState.REVOKED
-    if status is CommercialStatus.SUSPENDED:
+    if payload.commercial_status is CommercialStatus.SUSPENDED:
         return LicenseState.SUSPENDED
     return offline_state

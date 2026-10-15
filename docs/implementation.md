@@ -45,8 +45,8 @@ Still open and **not** assumed: Q-01, Q-02, Q-03 (no HTTP endpoints built yet), 
 | 8 | [#30](https://github.com/Apporine/relyxus-backend/pull/30) `feat/license-cli-inspect-verify` | `relyxus license inspect\|verify` | LIC-15.03, DEP-23.02 | merged |
 | 9 | `feat/license-store` | install/replace/status, Superseded history, downgrade/replay protection | LIC-7.07, LIC-12.03, LIC-17.02, DEP-23.07 | merged (API A14) |
 | 10 | [#31](https://github.com/Apporine/relyxus-backend/pull/31) `feat/api-license-key-set-document-loader` | API loads trusted key-set document v1 for runtime verify | LIC-10.01, DEP-23.01, MPS-29.04 | merged |
-| 11 | `feat/license-connected-refresh` | Signed status snapshots, outbound fetch, cache + outage grace on `GET /license/status` | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | in review |
-| 12 | `feat/license-airgap-import` | `relyxus license import` — offline verify + install-ready artifact JSON | LIC-11.02, LIC-19.04 | in review |
+| 11 | [#37](https://github.com/Apporine/relyxus-backend/pull/37) `feat/flic-connected-refresh-airgap-import` | Signed status snapshots, outbound fetch, cache + outage grace on `GET /license/status` | LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03 | in review |
+| 12 | [#37](https://github.com/Apporine/relyxus-backend/pull/37) `feat/flic-connected-refresh-airgap-import` | `relyxus license import` — offline verify + install-ready artifact JSON | LIC-11.02, LIC-19.04 | in review |
 
 GitHub PR #7 was a temporary CI diagnostic, closed unmerged.
 
@@ -61,10 +61,10 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 - **PR 5 — 2026-10-14** — Strict unpadded base64url (single valid encoding); `TrustedKey`/`TrustedKeySet` (P-256 public keys only, private PEM refused, environment tag, UTC signing window, duplicate/empty set refused); `authenticate_envelope` (supported algorithm → known key → matching environment → algorithm/key consistency → ECDSA-SHA256 over exact payload bytes). Golden vector `tests/vectors/golden-license-v1.json` (public key only; signing key discarded). Test signing helpers in `tests/signing_support.py` with per-session generated keys. **Covered:** LIC-6.03 (non-prod key never verifies prod), LIC-6.04 + MPS-29.16 (rotation overlap), LIC-19.01 (signature golden vector), MPS-29.15 (public key set only, private key refused), MPS-29.17 (tampered payload, malformed envelope, unsupported algorithm), TSD-23.04, TSD-23.07, TSD-23.11 (unknown key IDs), MP-14.01. **Results:** pre-commit all hooks Passed (ruff, format, mypy strict, pytest 135 passed, gitleaks).
 - **PR 6 — 2026-10-14** — `LicenseVerifier.verify(artifact, now)`: size cap → envelope → signature → canonical payload → product/customer/deployment binding → key signing window → `not_before` with configurable clock-skew tolerance → state. `LicenseState` enum with all seven LIC §7 states; offline evaluation yields Active/Grace/Expired only; provisional grace registry (`standard-30d`). `VerifiedLicense` exposes matched deployment binding (production/non-production/DR), grace end, `has_entitlement`, `get_limit`. Explicit clock (naive `now` refused). **Covered:** LIC-2.04 (no network), LIC-2.05 + MPS-29.04 + DEP-23.08 (expiry is a state, not an error), LIC-7.02–7.04, LIC-12.01, LIC-12.02 (allowance surfaced), LIC-13.02–13.03 (entitlement/limit read API), LIC-19.02 (tamper, expiry, clock skew, wrong customer/deployment, key rotation), TSD-23.14 (positive, tampered, expired, not-yet-valid, wrong-customer, wrong-deployment, wrong-key, rotated-key), MPS-29.08, MPS-29.11 (local verification), MPS-29.17. **Not covered yet:** enforcement of what Grace/Expired restrict (Q-07a), Suspended/Revoked (PR 10), Superseded/downgrade protection (PR 8). **Results:** pre-commit all hooks Passed; pytest 161 passed; coverage of `apporine_licensing` 99% (uncovered: schema-writer entry point, one unreachable algorithm-mismatch branch).
 - **PR 31 — 2026-10-14** — API runtime loads `RELYXUS_LICENSE_TRUSTED_KEY_SET_PATH` via `load_trusted_key_set_file`; licence verify/install/status use the same offline pipeline as the CLI. **Covered:** LIC-10.01, DEP-23.01, MPS-29.04. **Results:** merged on `develop` with CI (incl. migration heads).
-- **PR 11 (local) — 2026-10-14** — `apporine_licensing.status_snapshot` (signed commercial status payload v1), `connected_refresh` (cache TTL + outage grace, merge rules), API optional `RELYXUS_LICENSE_STATUS_URL` fetch with in-memory verified cache, `LicenseStatusView.connected_refresh_source`, contract **0.5.2**. **Covered:** LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03. **Results:** ruff/mypy pass; pytest 281 passed (53 DB integration skipped locally).
-- **PR 12 (local) — 2026-10-14** — `relyxus license import` verifies offline and prints JSON with `ready_for_install`, exact `artifact` bytes, verification summary and API install next step. **Covered:** LIC-11.02, LIC-19.04. **Results:** CLI tests pass; no network.
+- **PR 37 — 2026-10-15** — `apporine_licensing.status_snapshot` (signed commercial status payload v1), `connected_refresh` (cache TTL + outage grace, merge rules), API optional `RELYXUS_LICENSE_STATUS_URL` fetch with in-memory verified cache, `LicenseStatusView.connected_refresh_source`, contract **0.5.2**. **Covered:** LIC-9.03, LIC-10.02, LIC-10.03, LIC-19.03. **Results:** ruff/mypy pass; pytest 281 passed (53 DB integration skipped locally).
+- **PR 37 (continued) — 2026-10-15** — `relyxus license import` verifies offline and prints JSON with `ready_for_install`, exact `artifact` bytes, verification summary and API install next step. **Covered:** LIC-11.02, LIC-19.04. **Results:** CLI tests pass; no network.
 
-**F-LIC tracker status:** items **#1–#10 merged** on `develop`; **#11–#12 in review** (branch pending). Downgrade guard, richer status, CLI key-set validate and `TrustedKeySet.key_ids()` shipped via PRs **#32–#36** (see API rows A19–A21 below).
+**F-LIC tracker status:** items **#1–#10 merged** on `develop`; **#11–#12 in review** ([#37](https://github.com/Apporine/relyxus-backend/pull/37)). Downgrade guard, richer status, CLI key-set validate and `TrustedKeySet.key_ids()` shipped via PRs **#32–#36** (see API rows A19–A21 below).
 
 ---
 
@@ -78,7 +78,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 | A19 | [#31](https://github.com/Apporine/relyxus-backend/pull/31) | Trusted key-set document path for API licence runtime | LIC-10.01, DEP-23.01 | merged |
 | A20 | [#33](https://github.com/Apporine/relyxus-backend/pull/33) | Licence downgrade guard; status includes entitlements and `grace_ends_at` | LIC-17.02, LIC-13.x | merged |
 | A21 | [#34](https://github.com/Apporine/relyxus-backend/pull/34) | `GET /api/v1/meta` (contract version, environment) | MP-28.01 | merged |
-| A22 | `feat/license-connected-refresh` | Connected status refresh on `GET /license/status` (optional env URL) | LIC-10.02, LIC-10.03 | in review (with F-LIC #11) |
+| A22 | [#37](https://github.com/Apporine/relyxus-backend/pull/37) | Connected status refresh on `GET /license/status` (optional env URL) | LIC-10.02, LIC-10.03 | in review (with F-LIC #11) |
 
 ### Progress log
 
@@ -266,7 +266,7 @@ _Each entry: PR number, date, what changed, requirement IDs covered, test/lint r
 - **A18 — 2026-10-14** — `GET /api/v1/policy/engine` reports stub mode and optional bundle path. Contract **0.5.0**.
 - **Squash #29 — 2026-10-14** — Merged the stacked API foundation (A1–A18), Keycloak compose, policy skeleton onto `develop` after CI (lint, types, tests, secret scan, **migration heads**).
 - **A19–A21 — 2026-10-14** — Follow-up PRs #31, #33, #34 on `develop` (key-set loader, downgrade guard + richer licence status, `/meta`). Contract **0.5.1**.
-- **A22 (local) — 2026-10-14** — Connected refresh wiring; OpenAPI **0.5.2** (`connected_refresh_source` on licence status). Pending merge with F-LIC #11.
+- **A22 — 2026-10-15** — Connected refresh wiring; OpenAPI **0.5.2** (`connected_refresh_source` on licence status). **PR #37**.
 
 ---
 

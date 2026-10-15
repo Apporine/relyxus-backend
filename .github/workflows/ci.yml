@@ -116,51 +116,30 @@ jobs:
         if: vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true'
         run: bash infra/aws/cicd/scripts/publish-cicd-event.sh deploy started
 
-      - name: Optional CodeBuild (ECR image)
-        if: (vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true') && vars.AWS_CODEBUILD_ENABLED == 'true'
+      # One plain image per commit (no attestation index), so ECR shows a single row per build.
+      - name: Build and push API image (ECR)
+        if: (vars.AWS_CICD_ROLE_ARN != '' || vars.AWS_CICD_USE_ACCESS_KEY == 'true') && vars.AWS_ECR_PUSH_ENABLED == 'true'
         env:
-          SOURCE_BUCKET: ${{ vars.AWS_CICD_SOURCE_BUCKET }}
+          ECR_REPOSITORY: ${{ vars.AWS_ECR_REPOSITORY || 'relyxus/api' }}
         run: |
           set -euo pipefail
-          : "${SOURCE_BUCKET:?Set repository variable AWS_CICD_SOURCE_BUCKET}"
           bash infra/aws/cicd/scripts/publish-cicd-event.sh build started
-          ARCHIVE="relyxus-${GITHUB_SHA}.zip"
-          zip -rq "$ARCHIVE" . \
-            -x '.git/*' -x '.venv/*' -x 'venv/*' -x '**/__pycache__/*' \
-            -x '.pytest_cache/*' -x '.mypy_cache/*' -x '.ruff_cache/*' \
-            -x 'htmlcov/*' -x '*.pem' -x 'relyxus-deploy.zip'
-          KEY="builds/${GITHUB_SHA}/${ARCHIVE}"
-          aws s3 cp "$ARCHIVE" "s3://${SOURCE_BUCKET}/${KEY}"
-          BUILD_ID="$(aws codebuild start-build \
-            --project-name relyxus-trial-build \
-            --source-type-override S3 \
-            --source-location-override "${SOURCE_BUCKET}/${KEY}" \
-            --environment-variables-override "name=IMAGE_TAG,value=${GITHUB_SHA},type=PLAINTEXT" \
-            --query 'build.id' --output text)"
-          echo "CodeBuild build id: ${BUILD_ID}"
-          for _ in $(seq 1 60); do
-            PHASE="$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
-              --query 'builds[0].currentPhase' --output text)"
-            STATUS="$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
-              --query 'builds[0].buildStatus' --output text)"
-            echo "phase=${PHASE} status=${STATUS}"
-            if [[ "$STATUS" == "SUCCEEDED" ]]; then
-              bash infra/aws/cicd/scripts/publish-cicd-event.sh build succeeded
-              break
-            fi
-            if [[ "$STATUS" == "FAILED" || "$STATUS" == "FAULT" || "$STATUS" == "STOPPED" ]]; then
-              bash infra/aws/cicd/scripts/publish-cicd-event.sh build failed
-              exit 1
-            fi
-            sleep 15
-          done
-          if [[ "$STATUS" != "SUCCEEDED" ]]; then
-            echo "CodeBuild did not finish within 15 minutes (status=${STATUS})"
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          IMAGE="${REGISTRY}/${ECR_REPOSITORY}"
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$REGISTRY"
+          if ! docker buildx build --provenance=false --sbom=false --push \
+            --tag "${IMAGE}:${GITHUB_SHA}" --tag "${IMAGE}:latest" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            -f Dockerfile .; then
             bash infra/aws/cicd/scripts/publish-cicd-event.sh build failed
             exit 1
           fi
-          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-          echo "Image: ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/relyxus/api:${GITHUB_SHA}"
+          bash infra/aws/cicd/scripts/publish-cicd-event.sh build succeeded
+          echo "Image: ${IMAGE}:${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: ${IMAGE}:${GITHUB_SHA}"
 
       - name: Sync and restart the trial host
         env:

@@ -1,14 +1,14 @@
 """Per-workspace incident numbers (MPS-20.12) and the 0013 backfill."""
 
+import asyncio
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from alembic import command
 from fastapi.testclient import TestClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from api_test_support import make_settings
 from db_test_support import (
@@ -19,9 +19,16 @@ from db_test_support import (
 )
 from relyxus_api.app import create_app
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER
+from relyxus_api.modules.access.model import WorkspaceRole
+from relyxus_api.modules.access.service import WorkspaceAccess
+from relyxus_api.modules.incident.model import IncidentSeverity
+from relyxus_api.modules.incident.service import IncidentService, NewIncident
 from relyxus_api.shared.auth.access_token import AuthenticatedPrincipal
+from relyxus_api.shared.db.engine import create_session_factory
 from tenancy_fixtures import (
+    AMIRA,
     ORG_A,
+    ORG_B,
     WORKSPACE_A1,
     WORKSPACE_B1,
     principal_for,
@@ -74,9 +81,34 @@ def test_numbers_count_up_independently_per_workspace(client: TestClient) -> Non
     assert first_a == 1
 
 
-def test_concurrent_declarations_get_distinct_numbers(client: TestClient) -> None:
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        numbers = list(pool.map(lambda _: _declare(client, WORKSPACE_B1), range(12)))
+def test_concurrent_declarations_get_distinct_numbers(database_url: str) -> None:
+    """Twelve declarations race on separate connections; the workspace lock serialises them."""
+    access = WorkspaceAccess(
+        user_id=AMIRA,
+        organization_id=ORG_B,
+        workspace_id=WORKSPACE_B1,
+        roles=frozenset({WorkspaceRole.INCIDENT_COMMANDER}),
+    )
+
+    async def declare_concurrently() -> list[int]:
+        engine = create_async_engine(database_url, pool_size=12)
+        sessions = create_session_factory(engine)
+
+        async def declare_one() -> int:
+            async with sessions() as session, session.begin():
+                incident = await IncidentService().create(
+                    session,
+                    access,
+                    NewIncident(title="Race", severity=IncidentSeverity.SEV3, is_declared=True),
+                )
+                return incident.number
+
+        try:
+            return list(await asyncio.gather(*(declare_one() for _ in range(12))))
+        finally:
+            await engine.dispose()
+
+    numbers = asyncio.run(declare_concurrently())
 
     assert len(set(numbers)) == 12
     assert sorted(numbers) == list(range(min(numbers), min(numbers) + 12))

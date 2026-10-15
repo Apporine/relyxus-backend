@@ -24,6 +24,7 @@ PROBE_ROLE = "relyxus_rls_probe"
 TENANT_TABLES = (
     "incident_timeline_events",
     "incident_links",
+    "incident_role_handoffs",
     "incident_tasks",
     "incident_role_assignments",
     "incidents",

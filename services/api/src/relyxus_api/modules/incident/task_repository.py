@@ -38,3 +38,15 @@ class IncidentTaskRepository:
             query = query.where(IncidentTask.id > after_id)
         tasks = await session.scalars(query.order_by(IncidentTask.id).limit(limit))
         return list(tasks)
+
+    async def list_unfinished_for_incident(
+        self, session: AsyncSession, incident_id: uuid.UUID, statuses: list[str], limit: int
+    ) -> list[IncidentTask]:
+        """Tasks in the given statuses, soonest due first (undated last), then oldest."""
+        tasks = await session.scalars(
+            select(IncidentTask)
+            .where(IncidentTask.incident_id == incident_id, IncidentTask.status.in_(statuses))
+            .order_by(IncidentTask.due_at.asc().nulls_last(), IncidentTask.id)
+            .limit(limit)
+        )
+        return list(tasks)

@@ -295,6 +295,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I10 | `feat/incident-timeline-notes` | `POST /api/v1/incidents/{id}/timeline/notes`: immutable human notes on the timeline, audited, idempotent | MPS-11.20, MPS-11.04 (scribe's record), MPS-5.20 | in review |
 | I11 | `feat/incident-acknowledge` | Impact-started, detected, acknowledged timestamps (migration 0017); declare/PATCH reported times with plausibility rules; `POST /api/v1/incidents/{id}/acknowledge` | MPS-8A.20, MPS-15.02 (Acknowledge), MPS-20.12 | in review |
 | I12 | `feat/incident-links` | Incident links (duplicate of, caused by, related to, recurrence of): add/list/remove, one per type per pair, on both timelines (migration 0018) | MPS-8A.31, MPS-20.31 | in review |
+| I13 | `feat/incident-role-handoff` | Role handoff: request (package snapshot), accept by incoming person (role moves, timeline records both), cancel/decline; one pending per role (migration 0019) | MPS-11.23 (partial), MPS-11.24 (partial), MPS-20.33 | in review |
 
 ---
 
@@ -435,3 +436,14 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** links in reports (8A.31).
 
   **Results:** ruff and mypy strict pass; pytest 443 passed against local PostgreSQL.
+
+- **I13 — 2026-10-15** — Incident role handoffs.
+  - **Table `incident_role_handoffs`** (migration 0019): role, state (pending, accepted, cancelled), from and to users, requester, JSONB package snapshot, accept and cancel times. A partial unique index allows one pending handoff per role. CHECKs: different people; state matches its timestamps. Forced RLS.
+  - **`POST /api/v1/incidents/{id}/handoffs`**: by the current holder, an incident commander or an owner. The incoming person must be a workspace member and not the holder. The package (incident summary, role holders, unfinished tasks soonest-due first, capped at 200) is captured at request time.
+  - **`…/handoffs/{id}/accept`**: only the incoming person (403 `INCIDENT_HANDOFF_NOT_RECIPIENT`). The role moves on acceptance, and the timeline records outgoing, incoming and time. If the role changed meanwhile, returns 409 `INCIDENT_HANDOFF_STALE`.
+  - **`…/handoffs/{id}/cancel`**: by the requester, either person (the incoming person cancelling is how they decline) or a role manager.
+  - **`GET …/handoffs`:** the history, cursor-paginated.
+  - **Contract version 0.17.0.**
+  - **Not covered yet:** pending approvals, active clocks, risks and unknowns, and the next update time in the package, all listed in `unavailable_sections`. Acknowledging or deferring approvals and clocks due within an hour (MPS-11.24). Neither approvals nor clocks exist yet.
+
+  **Results:** ruff and mypy strict pass; pytest 452 passed against local PostgreSQL.

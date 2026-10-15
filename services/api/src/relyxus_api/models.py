@@ -3,6 +3,7 @@
 from relyxus_api.modules.access.model import User, WorkspaceMembership
 from relyxus_api.modules.audit.model import AuditEvent
 from relyxus_api.modules.idempotency.model import IdempotencyRecord
+from relyxus_api.modules.incident.handoff_model import IncidentRoleHandoff
 from relyxus_api.modules.incident.link_model import IncidentLink
 from relyxus_api.modules.incident.model import Incident
 from relyxus_api.modules.incident.role_model import IncidentRoleAssignment
@@ -17,6 +18,7 @@ __all__ = [
     "Incident",
     "IncidentLink",
     "IncidentRoleAssignment",
+    "IncidentRoleHandoff",
     "IncidentTask",
     "IncidentTimelineEvent",
     "Organization",

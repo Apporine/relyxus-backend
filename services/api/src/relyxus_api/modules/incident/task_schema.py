@@ -88,3 +88,12 @@ class TaskView(BaseModel):
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
+
+
+class ConvertTaskRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    is_mandatory: bool | None = Field(
+        default=None,
+        description="Mandatory flag for the new follow-up; defaults to true for SEV1/SEV2.",
+    )

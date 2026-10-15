@@ -1,14 +1,21 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Request, Response
+from fastapi import APIRouter, Header, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from relyxus_api.modules.access.dependencies import WorkspaceSessionDependency
 from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceDependency
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
-from relyxus_api.modules.incident.task_model import IncidentTask
-from relyxus_api.modules.incident.task_schema import CreateTaskRequest, TaskView, UpdateTaskRequest
+from relyxus_api.modules.incident.follow_up_schema import FollowUpView
+from relyxus_api.modules.incident.task_conversion_service import IncidentTaskConversionService
+from relyxus_api.modules.incident.task_model import IncidentTask, TaskStatus
+from relyxus_api.modules.incident.task_schema import (
+    ConvertTaskRequest,
+    CreateTaskRequest,
+    TaskView,
+    UpdateTaskRequest,
+)
 from relyxus_api.modules.incident.task_service import IncidentTaskService, NewTask, TaskChanges
 from relyxus_api.shared.constants import IDEMPOTENCY_HEADER
 from relyxus_api.shared.http.envelope import ListEnvelope, SuccessEnvelope, wrap_page, wrap_success
@@ -83,16 +90,21 @@ async def create_task(
 @router.get(
     "/incidents/{incident_id}/tasks",
     summary="List an incident's tasks",
-    description="Oldest first, cursor-paginated; no total. Visibility follows the incident.",
+    description=(
+        "Oldest first, cursor-paginated; no total. Filter by one or more `status` values "
+        "(repeat the parameter), e.g. the unfinished tasks to offer as follow-ups at "
+        "resolution. Visibility follows the incident."
+    ),
     response_model=ListEnvelope[TaskView],
 )
 async def list_tasks(
     incident_id: uuid.UUID,
     workspace: WorkspaceSessionDependency,
     page_request: PageRequestDependency,
+    status: Annotated[list[TaskStatus] | None, Query()] = None,
 ) -> ListEnvelope[TaskView]:
     page = await IncidentTaskService().list(
-        workspace.session, workspace.access, incident_id, page_request
+        workspace.session, workspace.access, incident_id, page_request, frozenset(status or ())
     )
     views = [TaskView.from_task(task) for task in page.items]
     return wrap_page(Page(items=views, next_cursor=page.next_cursor, limit=page.limit))
@@ -132,3 +144,45 @@ async def update_task(
         ),
     )
     return _task_response(task)
+
+
+@router.post(
+    "/incidents/{incident_id}/tasks/{task_id}/follow-up",
+    summary="Move an unfinished task to a follow-up",
+    description=(
+        "At resolution, unfinished live tasks become follow-ups or are cancelled with a reason "
+        "(MPS-11.21). This creates the follow-up (title, owner and due date copied) and "
+        "cancels the task as moved. Only while the incident is resolved. Requires "
+        f"`{IDEMPOTENCY_HEADER}` and an incident-writing role."
+    ),
+    response_model=SuccessEnvelope[FollowUpView],
+    status_code=CREATED_STATUS,
+)
+async def convert_task_to_follow_up(
+    request: Request,
+    incident_id: uuid.UUID,
+    task_id: uuid.UUID,
+    workspace: IncidentWriteWorkspaceDependency,
+    body: ConvertTaskRequest,
+    idempotency_key: Annotated[str, Header(alias=IDEMPOTENCY_HEADER)],
+) -> Response:
+    idempotency = IdempotencyService()
+    reservation = await idempotency.begin(
+        workspace.session,
+        organization_id=workspace.access.organization_id,
+        idempotency_key=idempotency_key,
+        method=request.method,
+        path=request.url.path,
+        payload=body.model_dump(mode="json"),
+    )
+    if isinstance(reservation, IdempotencyReplay):
+        return JSONResponse(status_code=reservation.status_code, content=reservation.body)
+
+    follow_up = await IncidentTaskConversionService().convert(
+        workspace.session, workspace.access, incident_id, task_id, body.is_mandatory
+    )
+    payload = wrap_success(FollowUpView.from_follow_up(follow_up)).model_dump(mode="json")
+    await idempotency.complete(
+        workspace.session, reservation.record_id, status_code=CREATED_STATUS, body=payload
+    )
+    return JSONResponse(status_code=CREATED_STATUS, content=payload)

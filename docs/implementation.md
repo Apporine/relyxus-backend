@@ -297,6 +297,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I12 | `feat/incident-links` | Incident links (duplicate of, caused by, related to, recurrence of): add/list/remove, one per type per pair, on both timelines (migration 0018) | MPS-8A.31, MPS-20.31 | in review |
 | I13 | `feat/incident-role-handoff` | Role handoff: request (package snapshot), accept by incoming person (role moves, timeline records both), cancel/decline; one pending per role (migration 0019) | MPS-11.23 (partial), MPS-11.24 (partial), MPS-20.33 | in review |
 | I14 | `feat/incident-follow-ups` | Post-incident follow-ups: create/list/update on resolved or closed incidents, mandatory flag (SEV1/SEV2 default), audited, on timeline (migration 0020) | MPS-26.02, MPS-13.17 (data), MPS-20.32 (conversion target) | in review |
+| I15 | `feat/incident-task-conversion` | `POST …/tasks/{id}/follow-up` moves an unfinished task to a follow-up at resolution; task list `status` filter; DB sessions pinned to UTC | MPS-11.21, MPS-20.32, MPS-11.32 (unresolved tasks become follow-ups) | in review |
 
 ---
 
@@ -469,3 +470,12 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Jira/ServiceNow mirroring (MPS-16.10).
 
   **Results:** ruff and mypy strict pass; pytest 461 passed against local PostgreSQL.
+
+- **I15 — 2026-10-15** — Tasks to follow-ups at resolution.
+  - **`POST /api/v1/incidents/{id}/tasks/{task_id}/follow-up`** (`Idempotency-Key`, incident writers): only while the incident is **resolved**. Creates a follow-up with the task's title, owner and due date (`source = live_task`, unique `source_task_id`). The task ends cancelled with the reason "Moved to a follow-up at resolution."; both changes are audited and on the timeline in one transaction. Finished or already moved tasks return 409 `INCIDENT_TASK_NOT_EDITABLE`.
+  - **`GET …/tasks?status=…`** (repeatable) filters, so clients can offer exactly the unfinished tasks. Cancelling the rest with a reason already works through PATCH.
+  - **Fix:** API database sessions now `SET TIME ZONE 'UTC'` on connect. On servers whose default time zone isn't UTC, timestamps were returned with local offsets, against ADR-0003. A test pins it.
+  - **Contract version 0.19.0.**
+  - **Not covered yet:** blocking resolution or closure while unfinished tasks remain (the closure gate in I18 will check them).
+
+  **Results:** ruff and mypy strict pass; pytest 466 passed against local PostgreSQL.

@@ -1,6 +1,7 @@
 """Incident task persistence. Queries only; rules live in the task service."""
 
 import uuid
+from collections.abc import Collection
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,9 +32,12 @@ class IncidentTaskRepository:
         incident_id: uuid.UUID,
         after_id: uuid.UUID | None,
         limit: int,
+        statuses: Collection[str] = (),
     ) -> list[IncidentTask]:
-        """Oldest first (UUIDv7 order), keyset page after `after_id`."""
+        """Oldest first (UUIDv7 order), keyset page after `after_id`; empty statuses = any."""
         query = select(IncidentTask).where(IncidentTask.incident_id == incident_id)
+        if statuses:
+            query = query.where(IncidentTask.status.in_(statuses))
         if after_id is not None:
             query = query.where(IncidentTask.id > after_id)
         tasks = await session.scalars(query.order_by(IncidentTask.id).limit(limit))

@@ -14,12 +14,14 @@ from relyxus_api.modules.incident.schema import (
     DeclareIncidentRequest,
     IncidentView,
     TransitionIncidentRequest,
+    UpdateIncidentRequest,
 )
 from relyxus_api.modules.incident.service import IncidentFilters, IncidentService, NewIncident
 from relyxus_api.modules.incident.transition_service import (
     IncidentTransitionService,
     TransitionCommand,
 )
+from relyxus_api.modules.incident.update_service import IncidentChanges, IncidentUpdateService
 from relyxus_api.shared.config.settings import Settings
 from relyxus_api.shared.constants import IDEMPOTENCY_HEADER
 from relyxus_api.shared.http.envelope import ListEnvelope, SuccessEnvelope, wrap_page, wrap_success
@@ -183,3 +185,34 @@ async def transition_incident(
         workspace.session, reservation.record_id, status_code=OK_STATUS, body=payload
     )
     return JSONResponse(content=payload, headers=_etag_headers(incident))
+
+
+@router.patch(
+    "/incidents/{incident_id}",
+    summary="Change an incident's title or severity",
+    description=(
+        "Partial update of an open incident. Changing severity needs a `reason` (a human "
+        "override, MPS-8.06). Optional `If-Match` returns 412 if the incident changed since "
+        "it was read. Recorded in the workspace audit chain in the same transaction. "
+        "Requires the owner, admin, incident commander or responder role."
+    ),
+    response_model=SuccessEnvelope[IncidentView],
+)
+async def update_incident(
+    incident_id: uuid.UUID,
+    workspace: IncidentWriteWorkspaceDependency,
+    body: UpdateIncidentRequest,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+) -> Response:
+    incident = await IncidentUpdateService().update(
+        workspace.session,
+        workspace.access,
+        IncidentChanges(
+            incident_id=incident_id,
+            title=body.title,
+            severity=body.severity,
+            reason=body.reason,
+            if_match=if_match,
+        ),
+    )
+    return JSONResponse(content=_incident_body(incident), headers=_etag_headers(incident))

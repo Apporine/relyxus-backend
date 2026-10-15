@@ -91,3 +91,19 @@ class TransitionIncidentRequest(BaseModel):
         description="Required when target_state is merged; an open incident in this workspace.",
         examples=["0192f0c4-7d1e-7a3b-9c2d-5e6f7a8b9c0d"],
     )
+
+
+class UpdateIncidentRequest(BaseModel):
+    """Change an open incident's title and/or severity (MPS-8.06)."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    title: IncidentTitle | None = Field(
+        default=None, examples=["Card authorisations failing in EU"]
+    )
+    severity: IncidentSeverity | None = Field(default=None, examples=[IncidentSeverity.SEV1])
+    reason: TransitionReason | None = Field(
+        default=None,
+        description="Required when severity changes (human override, MPS-8.06).",
+        examples=["Failed payments now above 500 a minute"],
+    )

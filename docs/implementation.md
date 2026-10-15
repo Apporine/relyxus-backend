@@ -288,6 +288,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I3 | `feat/incident-transitions` | `POST /api/v1/incidents/{id}/transitions`, per-transition roles, reopen window, cancel/merge rules, timestamps (migration 0011), ETag | MPS-8A.09–8A.17, MPS-8A.20, MPS-8A.22, MPS-22A.05 | in review |
 | I4 | `feat/incident-list` | `GET /api/v1/incidents` newest first, state/severity filters, cursor paging; index (migration 0012) | MPS-15.02, MPS-22A.04 | in review |
 | I5 | `feat/incident-number` | Per-workspace incident number (display key), concurrency-safe allocation, backfill (migration 0013) | MPS-20.12, ADR-0003 §4 | in review |
+| I6 | `feat/incident-update` | `PATCH /api/v1/incidents/{id}` title/severity, reason for severity overrides, If-Match, audited | MPS-8.06, MPS-22A.05, MPS-8A.22 | in review |
 
 ---
 
@@ -347,3 +348,15 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Contract version 0.9.0.**
 
   **Results:** pytest 386 passed against local PostgreSQL. Tests cover per-workspace sequences, 12 concurrent declarations getting distinct gap-free numbers, and the backfill order with RLS force restored.
+
+- **I6 — 2026-10-15** — Edit title and severity.
+  - **Endpoint:** `PATCH /api/v1/incidents/{id}` with `title` and/or `severity`.
+  - **Reason:** a severity change requires `reason` (human override, MPS-8.06).
+  - **Rejected:** no-op requests return 422 `INCIDENT_NO_CHANGES`; terminal incidents return 409 `INCIDENT_NOT_EDITABLE`.
+  - **Concurrency:** row lock plus optional `If-Match` (412).
+  - **Audit:** `incident.updated` with before/after of changed fields only.
+  - **Contract version 0.10.0.**
+  - **Not yet:** SEV1 promotion side effects (MPS-8A.19).
+  - **Also in this stack:** I5's concurrency test now races real connections instead of one shared TestClient across threads, which could hang.
+
+  **Results:** pytest 395 passed against local PostgreSQL; ruff and mypy strict pass.

@@ -10,6 +10,32 @@
         "title": "ActorType",
         "type": "string"
       },
+      "AddIncidentLinkRequest": {
+        "additionalProperties": false,
+        "description": "Read as \"this incident is `link_type` the target incident\".",
+        "properties": {
+          "link_type": {
+            "$ref": "#/components/schemas/IncidentLinkType",
+            "examples": [
+              "caused_by"
+            ]
+          },
+          "target_incident_id": {
+            "examples": [
+              "0192f0c4-7d1e-7a3b-9c2d-5e6f7a8b9c0d"
+            ],
+            "format": "uuid",
+            "title": "Target Incident Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_incident_id",
+          "link_type"
+        ],
+        "title": "AddIncidentLinkRequest",
+        "type": "object"
+      },
       "AddNoteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -476,6 +502,70 @@
         "title": "IncidentLifecycleState",
         "type": "string"
       },
+      "IncidentLinkType": {
+        "description": "Read as \"<from incident> is <type> <to incident>\".",
+        "enum": [
+          "duplicate_of",
+          "caused_by",
+          "related_to",
+          "recurrence_of"
+        ],
+        "title": "IncidentLinkType",
+        "type": "string"
+      },
+      "IncidentLinkView": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_user_id": {
+            "format": "uuid",
+            "title": "Created By User Id",
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/LinkDirection",
+            "description": "`outgoing`: this incident is `link_type` the other incident. `incoming`: the other incident is `link_type` this one."
+          },
+          "from_incident_id": {
+            "format": "uuid",
+            "title": "From Incident Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "link_type": {
+            "$ref": "#/components/schemas/IncidentLinkType"
+          },
+          "other_incident_id": {
+            "format": "uuid",
+            "title": "Other Incident Id",
+            "type": "string"
+          },
+          "to_incident_id": {
+            "format": "uuid",
+            "title": "To Incident Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "link_type",
+          "direction",
+          "from_incident_id",
+          "to_incident_id",
+          "other_incident_id",
+          "created_by_user_id",
+          "created_at"
+        ],
+        "title": "IncidentLinkView",
+        "type": "object"
+      },
       "IncidentRole": {
         "description": "MPS-11.04 incident roles; distinct from workspace roles (MPS-14).",
         "enum": [
@@ -871,6 +961,14 @@
         "title": "LicenseStatusView",
         "type": "object"
       },
+      "LinkDirection": {
+        "enum": [
+          "outgoing",
+          "incoming"
+        ],
+        "title": "LinkDirection",
+        "type": "string"
+      },
       "ListEnvelope_AuditEventSummary_": {
         "properties": {
           "data": {
@@ -895,6 +993,32 @@
           "meta"
         ],
         "title": "ListEnvelope[AuditEventSummary]",
+        "type": "object"
+      },
+      "ListEnvelope_IncidentLinkView_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentLinkView"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ListMeta"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "ListEnvelope[IncidentLinkView]",
         "type": "object"
       },
       "ListEnvelope_IncidentView_": {
@@ -1312,6 +1436,24 @@
           "data"
         ],
         "title": "SuccessEnvelope[CurrentIdentity]",
+        "type": "object"
+      },
+      "SuccessEnvelope_IncidentLinkView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/IncidentLinkView"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[IncidentLinkView]",
         "type": "object"
       },
       "SuccessEnvelope_IncidentRoleView_": {
@@ -2097,7 +2239,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.15.0"
+    "version": "0.16.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2963,6 +3105,338 @@
         "summary": "Acknowledge an incident",
         "tags": [
           "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/links": {
+      "get": {
+        "description": "Links in both directions, oldest first; `direction` says which way each one reads. Cursor-paginated; no total.",
+        "operationId": "list_incident_links_api_v1_incidents__incident_id__links_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Opaque cursor from `meta.next_cursor`",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Opaque cursor from `meta.next_cursor`",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Items per page (1-100)",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "description": "Items per page (1-100)",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListEnvelope_IncidentLinkView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List an incident's links",
+        "tags": [
+          "incident-links"
+        ]
+      },
+      "post": {
+        "description": "Records that this incident is `duplicate_of`, `caused_by`, `related_to` or `recurrence_of` another incident in the same workspace (MPS-8A.31). Two incidents share at most one link of each type, in either direction. The link appears on both incidents' timelines. Not allowed once this incident is closed, cancelled or merged. Requires `Idempotency-Key` and an incident-writing role.",
+        "operationId": "add_incident_link_api_v1_incidents__incident_id__links_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "title": "Idempotency-Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddIncidentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_IncidentLinkView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Link this incident to another",
+        "tags": [
+          "incident-links"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/links/{link_id}": {
+      "delete": {
+        "description": "Removes a link that this incident is either end of. Recorded on both incidents' timelines and in the audit chain. Requires an incident-writing role.",
+        "operationId": "remove_incident_link_api_v1_incidents__incident_id__links__link_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Remove a link",
+        "tags": [
+          "incident-links"
         ]
       }
     },

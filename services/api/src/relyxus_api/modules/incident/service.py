@@ -70,10 +70,12 @@ class IncidentService:
             validate_lifecycle_transition(IncidentLifecycleState.TRIAGE, target_state)
             declared_at = datetime.now(UTC)
 
+        number = await self._repository.allocate_number(session, access.workspace_id)
         incident = await self._repository.add(
             session,
             Incident(
                 id=new_uuid7(),
+                number=number,
                 organization_id=access.organization_id,
                 workspace_id=access.workspace_id,
                 lifecycle_state=target_state.value,

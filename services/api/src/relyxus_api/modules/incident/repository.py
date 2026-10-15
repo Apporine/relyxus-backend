@@ -3,13 +3,24 @@
 import uuid
 from collections.abc import Collection
 
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.incident.model import Incident
 
+_NUMBER_LOCK = text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))")
+
 
 class IncidentRepository:
+    async def allocate_number(self, session: AsyncSession, workspace_id: uuid.UUID) -> int:
+        """Next per-workspace number. The transaction-scoped lock serialises concurrent
+        creations in one workspace; the unique constraint is the backstop."""
+        await session.execute(_NUMBER_LOCK, {"key": f"incident-number:{workspace_id}"})
+        highest = await session.scalar(
+            select(func.max(Incident.number)).where(Incident.workspace_id == workspace_id)
+        )
+        return (highest or 0) + 1
+
     async def add(self, session: AsyncSession, incident: Incident) -> Incident:
         session.add(incident)
         await session.flush()

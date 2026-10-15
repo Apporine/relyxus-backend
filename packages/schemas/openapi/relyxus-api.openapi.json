@@ -478,6 +478,14 @@
             ],
             "title": "Mitigated At"
           },
+          "number": {
+            "description": "Per-workspace display number (e.g. shown as INC-42); not an identifier.",
+            "examples": [
+              42
+            ],
+            "title": "Number",
+            "type": "integer"
+          },
           "resolved_at": {
             "anyOf": [
               {
@@ -526,6 +534,7 @@
         "required": [
           "id",
           "workspace_id",
+          "number",
           "title",
           "severity",
           "lifecycle_state",
@@ -1303,7 +1312,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.8.0"
+    "version": "0.9.0"
   },
   "openapi": "3.1.0",
   "paths": {

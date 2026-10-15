@@ -287,6 +287,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I2 | `feat/incident-declare` | `POST /api/v1/incidents` declare or draft, `GET /api/v1/incidents/{id}`, declaration timestamps (migration 0010), audit in-transaction | MPS-8A.08 (partial), MPS-8A.20, MPS-8A.22, MPS-22A.05, MPS-15.04 | in review |
 | I3 | `feat/incident-transitions` | `POST /api/v1/incidents/{id}/transitions`, per-transition roles, reopen window, cancel/merge rules, timestamps (migration 0011), ETag | MPS-8A.09–8A.17, MPS-8A.20, MPS-8A.22, MPS-22A.05 | in review |
 | I4 | `feat/incident-list` | `GET /api/v1/incidents` newest first, state/severity filters, cursor paging; index (migration 0012) | MPS-15.02, MPS-22A.04 | in review |
+| I5 | `feat/incident-number` | Per-workspace incident number (display key), concurrency-safe allocation, backfill (migration 0013) | MPS-20.12, ADR-0003 §4 | in review |
 
 ---
 
@@ -337,3 +338,12 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Contract version 0.8.0.**
 
   **Results:** ruff and mypy strict pass; pytest 383 passed against local PostgreSQL.
+
+- **I5 — 2026-10-15** — Per-workspace incident number.
+  - **`number`:** 1..n per workspace, returned on incidents (shown as INC-42). A display key only; lookups stay by UUID (ADR-0003 §4).
+  - **Allocation:** a per-workspace transaction advisory lock plus a unique `(workspace_id, number)` backstop.
+  - **Migration `0013`:** backfills existing incidents in creation order, lifting forced RLS only around the backfill and restoring it, then NOT NULL + unique + positive CHECK.
+  - **Rollout note:** deploy this release's API before running the migration.
+  - **Contract version 0.9.0.**
+
+  **Results:** pytest 386 passed against local PostgreSQL. Tests cover per-workspace sequences, 12 concurrent declarations getting distinct gap-free numbers, and the backfill order with RLS force restored.

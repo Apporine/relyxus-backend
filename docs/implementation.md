@@ -298,6 +298,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I13 | `feat/incident-role-handoff` | Role handoff: request (package snapshot), accept by incoming person (role moves, timeline records both), cancel/decline; one pending per role (migration 0019) | MPS-11.23 (partial), MPS-11.24 (partial), MPS-20.33 | in review |
 | I14 | `feat/incident-follow-ups` | Post-incident follow-ups: create/list/update on resolved or closed incidents, mandatory flag (SEV1/SEV2 default), audited, on timeline (migration 0020) | MPS-26.02, MPS-13.17 (data), MPS-20.32 (conversion target) | in review |
 | I15 | `feat/incident-task-conversion` | `POST …/tasks/{id}/follow-up` moves an unfinished task to a follow-up at resolution; task list `status` filter; DB sessions pinned to UTC | MPS-11.21, MPS-20.32, MPS-11.32 (unresolved tasks become follow-ups) | in review |
+| I16 | `feat/incident-review` | Post-incident review: created on resolve (owner = IC), Draft → In review → Approved → Published, lessons required SEV1/SEV2, edit/reassign, start for earlier incidents (migration 0021) | MPS-8A.11, MPS-13.12, MPS-13.16, MPS-20.50 (partial) | in review |
 
 ---
 
@@ -479,3 +480,25 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
   - **Not covered yet:** blocking resolution or closure while unfinished tasks remain (the closure gate in I18 will check them).
 
   **Results:** ruff and mypy strict pass; pytest 466 passed against local PostgreSQL.
+
+- **I16 — 2026-10-15** — Post-incident reviews.
+  - **Table `incident_reviews`** (migration 0021): one per incident; state, owner, summary, lessons learned (each ≤ 20,000 characters), submitted/approved/published/closed times; forced RLS.
+  - **Created on Monitoring → Resolved** (MPS-8A.11) in the same transaction. The owner is the incident commander role holder, or else whoever resolved it. Reopening and resolving again keeps the same review.
+  - **Endpoints:**
+    - `GET /api/v1/incidents/{id}/review` (ETag)
+    - `POST …/review` to start one for incidents resolved before reviews existed (409 if one exists)
+    - `PATCH …/review` (summary and lessons while draft or in review; owner reassignment by the review owner, an incident commander or an owner; `If-Match`)
+    - `POST …/review/transitions` (`Idempotency-Key`)
+  - **States:**
+    - Moves: draft → in_review → approved → published, plus in_review → draft. Only the review owner or a workspace owner can move a review.
+    - Submitting needs a summary, and lessons learned for SEV1/SEV2 (MPS-13.16).
+    - `closed` is reserved for incident closure (I18).
+  - Audited and on the timeline (`incident.review_created` / `_updated` / `_transitioned`). Content edits record the full before/after text.
+  - **Contract version 0.20.0.**
+  - **Not covered yet:**
+    - Required reviewers and sign-offs (I17).
+    - Due dates and escalation (MPS-13.14).
+    - Redaction and audiences (MPS-13.15).
+    - Generated drafts (MPS-13.06).
+
+  **Results:** ruff and mypy strict pass; pytest 473 passed against local PostgreSQL.

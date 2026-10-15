@@ -20,11 +20,11 @@ from apporine_licensing.errors import (
     ProductMismatchError,
     UnsupportedSchemaVersionError,
 )
-from apporine_licensing.key_set import KeyEnvironment
+from apporine_licensing.key_set import KeyEnvironment, TrustedKeySet
 from apporine_licensing.payload import SUPPORTED_SCHEMA_VERSIONS, UtcTimestamp
 from apporine_licensing.signature import authenticate_envelope
 from apporine_licensing.validation_messages import summarize_validation_error
-from apporine_licensing.verifier import InstallationIdentity, TrustedKeySet
+from apporine_licensing.verifier import InstallationIdentity
 
 
 class CommercialStatus(StrEnum):
@@ -62,6 +62,8 @@ def parse_status_payload(payload_bytes: bytes) -> StatusSnapshotPayload:
     except CanonicalJsonError as error:
         message = f"Status snapshot payload is not valid JSON: {error}"
         raise LicenseMalformedError(message) from error
+    if not isinstance(parsed, dict):
+        raise LicenseMalformedError("Status snapshot payload must be a JSON object")
     schema_version = parsed.get("schema_version")
     if isinstance(schema_version, bool) or schema_version not in SUPPORTED_SCHEMA_VERSIONS:
         raise UnsupportedSchemaVersionError("Status snapshot schema_version is not supported")

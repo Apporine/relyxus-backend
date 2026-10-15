@@ -24,7 +24,7 @@ def fetch_status_snapshot_document(url: str, timeout_seconds: float) -> bytes:
     )
     try:
         with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
-            body = response.read()
+            body = bytes(response.read())
     except (HTTPError, URLError, TimeoutError) as error:
         raise LicenseStatusFetchError(
             "Could not retrieve a signed licence status snapshot."

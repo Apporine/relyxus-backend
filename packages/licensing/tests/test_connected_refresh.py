@@ -28,7 +28,7 @@ def _cache_entry(status: CommercialStatus, *, retrieved_at: datetime) -> StatusC
         product_id="relyxus",
         deployment_id="acme-bank-prod-eu",
         commercial_status=status,
-        effective_at="2027-01-15T12:00:00Z",
+        effective_at=datetime(2027, 1, 15, 12, 0, tzinfo=UTC),
     )
     return StatusCacheEntry(
         snapshot=VerifiedStatusSnapshot(payload=payload, signing_key_id="test-key"),

@@ -13,6 +13,10 @@ from relyxus_api.modules.incident.affected_services_service import (
     AffectedService,
     AffectedServicesService,
 )
+from relyxus_api.modules.incident.field_value_service import (
+    FieldValue,
+    IncidentFieldValueService,
+)
 from relyxus_api.modules.incident.lifecycle import IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
 from relyxus_api.modules.incident.role_model import IncidentRole
@@ -21,8 +25,10 @@ from relyxus_api.modules.incident.schema import (
     AffectedServiceView,
     AssignIncidentRoleRequest,
     DeclareIncidentRequest,
+    FieldValueView,
     IncidentRoleView,
     IncidentView,
+    SetFieldValueRequest,
     TransitionIncidentRequest,
     UpdateIncidentRequest,
 )
@@ -95,6 +101,7 @@ async def declare_incident(
             severity=body.severity,
             is_declared=body.is_declared,
             incident_type_id=body.incident_type_id,
+            field_values=tuple(body.field_values.items()),
             impact_started_at=body.impact_started_at,
             detected_at=body.detected_at,
             affected_service_ids=tuple(body.affected_service_ids),
@@ -394,5 +401,68 @@ async def remove_affected_service(
 ) -> Response:
     await AffectedServicesService().remove(
         workspace.session, workspace.access, incident_id, service_id
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _field_view(item: FieldValue) -> FieldValueView:
+    return FieldValueView(
+        key=item.field.key,
+        label=item.field.label,
+        data_type=item.field.data_type,
+        value=item.value.value,
+        field_version=item.value.field_version,
+        is_field_archived=item.field.archived_at is not None,
+        set_by_user_id=item.value.set_by_user_id,
+        set_at=item.value.updated_at,
+    )
+
+
+@router.get(
+    "/incidents/{incident_id}/fields",
+    summary="List an incident's custom field values",
+    description="Every value, including values of fields archived since (MPS-8A.05).",
+    response_model=SuccessEnvelope[list[FieldValueView]],
+)
+async def list_field_values(
+    incident_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> SuccessEnvelope[list[FieldValueView]]:
+    items = await IncidentFieldValueService().list(workspace.session, workspace.access, incident_id)
+    return wrap_success([_field_view(item) for item in items])
+
+
+@router.put(
+    "/incidents/{incident_id}/fields/{field_key}",
+    summary="Set a custom field value",
+    description=(
+        "Sets the value of an active field that applies to this incident's type and severity "
+        "(MPS-8A.04). Validated against the field's data type; recorded with the field "
+        "version, on the timeline and in the audit chain. Incident-writing roles."
+    ),
+    response_model=SuccessEnvelope[FieldValueView],
+)
+async def set_field_value(
+    incident_id: uuid.UUID,
+    field_key: str,
+    workspace: IncidentWriteWorkspaceDependency,
+    body: SetFieldValueRequest,
+) -> SuccessEnvelope[FieldValueView]:
+    item = await IncidentFieldValueService().set(
+        workspace.session, workspace.access, incident_id, field_key, body.value
+    )
+    return wrap_success(_field_view(item))
+
+
+@router.delete(
+    "/incidents/{incident_id}/fields/{field_key}",
+    summary="Clear a custom field value",
+    description="404 if the incident has no value for the field. Incident-writing roles.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def clear_field_value(
+    incident_id: uuid.UUID, field_key: str, workspace: IncidentWriteWorkspaceDependency
+) -> Response:
+    await IncidentFieldValueService().clear(
+        workspace.session, workspace.access, incident_id, field_key
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)

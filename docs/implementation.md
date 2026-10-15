@@ -328,6 +328,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | V2 | `feat/incident-types` | Incident types: create/list/get/update/archive, versioned via configuration versions; install the nine MPS-8A.02 defaults (migration 0030) | MPS-8A.01 (partial), MPS-8A.02, MPS-8A.06, MPS-20.26 (partial) | in review |
 | V3 | `feat/incident-declare-type` | Declare under an incident type: type required once the workspace has types, defaults severity/visibility, allowed severities enforced (also on later changes, per declared type version), list filter by type (migration 0031) | MPS-8A.08 (type), MPS-8A.06 (incident keeps its version), MPS-20.12 | in review |
 | V4 | `feat/custom-fields` | Custom-field library: 11 data types, choice options, display conditions (type, severity), required-at stage, archive keeps values, versioned (migration 0032) | MPS-8A.03, MPS-8A.04 (definition), MPS-8A.05, MPS-8A.06, MPS-20.27 | in review |
+| V5 | `feat/incident-field-values` | Custom field values on incidents: typed validation and normalisation, display conditions, values at declaration, required-at-stage gate on declare and transitions, on timeline (migration 0033) | MPS-8A.04, MPS-8A.05 (values kept), MPS-20.28, MPS-15.04 (required-field checks) | in review |
 
 ---
 
@@ -747,3 +748,28 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Vendor fields.
 
   **Results:** ruff and mypy strict pass; pytest 562 passed against local PostgreSQL.
+
+- **V5 — 2026-10-15** — Custom field values.
+  - **Table `incident_field_values`** (migration 0033): one current value per (incident, field) with the field version it was set under; composite FKs to the incident and the field; forced RLS.
+  - **Validation and stored form:** canonical JSON with no floats, so the audit hash chain stays valid.
+    - text: trimmed, ≤ 5000 characters.
+    - number: a decimal string.
+    - currency: `{amount_minor, currency}` with an ISO 4217 code (ADR-0003 money).
+    - date-time: zone required, stored in UTC.
+    - yes/no: a boolean.
+    - choices: option values (multiple choice in option order, distinct).
+    - user, team, service: IDs checked against the workspace (services must be active).
+    - url: http(s).
+  - **Applicability:** a value can only be set when the field's display condition matches the incident's type and severity (422 `INCIDENT_FIELD_NOT_APPLICABLE`).
+  - **Endpoints:**
+    - `GET /api/v1/incidents/{id}/fields`: includes values of archived fields (MPS-8A.05).
+    - `PUT` / `DELETE …/fields/{key}`: incident writers; frozen once closed, cancelled or merged.
+    - Changes are on the timeline as `incident.field_set` / `incident.field_cleared`, with before/after and the field version.
+  - **Declare** accepts `field_values` by key.
+  - **Required-at-stage gate:** declaring, and every transition into a requirable stage, needs the applicable active fields required at or before that stage (422 `INCIDENT_REQUIRED_FIELDS_MISSING`, naming the keys). It runs after the role check.
+  - **Contract version 0.32.0.**
+  - **Not covered yet:**
+    - Vendor fields.
+    - Per-type forms (declare/update/resolve) and required-field lists beyond display conditions (MPS-8A.01 forms).
+
+  **Results:** ruff and mypy strict pass; pytest 585 passed against local PostgreSQL.

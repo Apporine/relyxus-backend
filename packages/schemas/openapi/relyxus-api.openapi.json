@@ -1159,6 +1159,18 @@
             ],
             "title": "Detected At"
           },
+          "field_values": {
+            "additionalProperties": true,
+            "description": "Custom field values by field key (MPS-8A.04). Fields required at `investigating` must be given to declare.",
+            "examples": [
+              {
+                "affected_region": "eu_west"
+              }
+            ],
+            "maxProperties": 200,
+            "title": "Field Values",
+            "type": "object"
+          },
           "impact_started_at": {
             "anyOf": [
               {
@@ -1302,6 +1314,56 @@
           "message"
         ],
         "title": "FieldProblem",
+        "type": "object"
+      },
+      "FieldValueView": {
+        "properties": {
+          "data_type": {
+            "title": "Data Type",
+            "type": "string"
+          },
+          "field_version": {
+            "description": "The field version the value was set under.",
+            "title": "Field Version",
+            "type": "integer"
+          },
+          "is_field_archived": {
+            "title": "Is Field Archived",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "set_at": {
+            "format": "date-time",
+            "title": "Set At",
+            "type": "string"
+          },
+          "set_by_user_id": {
+            "format": "uuid",
+            "title": "Set By User Id",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "data_type",
+          "value",
+          "field_version",
+          "is_field_archived",
+          "set_by_user_id",
+          "set_at"
+        ],
+        "title": "FieldValueView",
         "type": "object"
       },
       "FollowUpSource": {
@@ -3172,6 +3234,23 @@
         "title": "ServiceView",
         "type": "object"
       },
+      "SetFieldValueRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "description": "Shape depends on the field: text, number (number or decimal string), currency `{amount_minor, currency}`, ISO 8601 date-time with zone, true/false, an option value, a list of option values, a user/team/service ID, or an http(s) URL.",
+            "examples": [
+              "eu_west"
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "SetFieldValueRequest",
+        "type": "object"
+      },
       "SuccessEnvelope_AccessGrantView_": {
         "properties": {
           "data": {
@@ -3296,6 +3375,24 @@
           "data"
         ],
         "title": "SuccessEnvelope[CustomFieldView]",
+        "type": "object"
+      },
+      "SuccessEnvelope_FieldValueView_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FieldValueView"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[FieldValueView]",
         "type": "object"
       },
       "SuccessEnvelope_FollowUpView_": {
@@ -3704,6 +3801,28 @@
           "data"
         ],
         "title": "SuccessEnvelope[list[AffectedServiceView]]",
+        "type": "object"
+      },
+      "SuccessEnvelope_list_FieldValueView__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/FieldValueView"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "SuccessEnvelope[list[FieldValueView]]",
         "type": "object"
       },
       "SuccessEnvelope_list_IncidentRoleView__": {
@@ -4942,7 +5061,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.31.0"
+    "version": "0.32.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -7335,6 +7454,304 @@
           }
         ],
         "summary": "Acknowledge an incident",
+        "tags": [
+          "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/fields": {
+      "get": {
+        "description": "Every value, including values of fields archived since (MPS-8A.05).",
+        "operationId": "list_field_values_api_v1_incidents__incident_id__fields_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_list_FieldValueView__"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List an incident's custom field values",
+        "tags": [
+          "incidents"
+        ]
+      }
+    },
+    "/api/v1/incidents/{incident_id}/fields/{field_key}": {
+      "delete": {
+        "description": "404 if the incident has no value for the field. Incident-writing roles.",
+        "operationId": "clear_field_value_api_v1_incidents__incident_id__fields__field_key__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "field_key",
+            "required": true,
+            "schema": {
+              "title": "Field Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Clear a custom field value",
+        "tags": [
+          "incidents"
+        ]
+      },
+      "put": {
+        "description": "Sets the value of an active field that applies to this incident's type and severity (MPS-8A.04). Validated against the field's data type; recorded with the field version, on the timeline and in the audit chain. Incident-writing roles.",
+        "operationId": "set_field_value_api_v1_incidents__incident_id__fields__field_key__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Incident Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "field_key",
+            "required": true,
+            "schema": {
+              "title": "Field Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Relyxus-Workspace-Id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "X-Relyxus-Workspace-Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFieldValueRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessEnvelope_FieldValueView_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/problem+json": {}
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Set a custom field value",
         "tags": [
           "incidents"
         ]

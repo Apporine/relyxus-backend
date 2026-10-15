@@ -74,7 +74,7 @@ async def require_workspace_structure_access(
 ) -> AsyncIterator[WorkspaceSession]:
     if not _WORKSPACE_STRUCTURE_ROLES.intersection(workspace.access.roles):
         raise InsufficientWorkspaceRoleError(
-            "Only workspace owners and admins can change teams and services."
+            "Only workspace owners and admins can change workspace configuration."
         )
     yield workspace
 

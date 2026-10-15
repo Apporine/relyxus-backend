@@ -26,6 +26,7 @@ TENANT_TABLES = (
     "incident_links",
     "incident_role_handoffs",
     "incident_follow_ups",
+    "incident_review_reviewers",
     "incident_reviews",
     "incident_tasks",
     "incident_role_assignments",

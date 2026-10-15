@@ -11,8 +11,13 @@ by incident writers while the review is a draft or in review; the owner can be c
 the review owner, an incident commander or an owner. Closed is reached only by closing
 the incident (MPS-8A.12). Every change is audited and on the timeline.
 
-Not yet: required reviewers and sign-off before approval (MPS-13.13, next PR); due dates
-and escalation (MPS-13.14); redaction and audiences (MPS-13.15); generated drafts (13.06).
+Required reviewers (MPS-13.13): approval needs every required reviewer's sign-off, and
+SEV1/SEV2 reviews need at least one reviewer (register Q-38); sending a review back to
+draft clears sign-offs. The incident commander becomes the default reviewer of SEV1/SEV2
+reviews. Choosing reviewers and signing off live in `reviewer_service`.
+
+Not yet: due dates and escalation (MPS-13.14); redaction and audiences (MPS-13.15);
+generated drafts (MPS-13.06).
 """
 
 import uuid
@@ -36,6 +41,11 @@ from relyxus_api.modules.incident.review_model import (
     ReviewState,
 )
 from relyxus_api.modules.incident.review_repository import IncidentReviewRepository
+from relyxus_api.modules.incident.reviewer_model import (
+    REVIEWER_ADDED_ACTION,
+    IncidentReviewReviewer,
+)
+from relyxus_api.modules.incident.reviewer_repository import IncidentReviewerRepository
 from relyxus_api.modules.incident.role_model import IncidentRole
 from relyxus_api.modules.incident.role_repository import IncidentRoleRepository
 from relyxus_api.modules.incident.service import IncidentNotFoundError
@@ -49,6 +59,7 @@ REVIEW_CREATED_ACTION = "incident.review_created"
 REVIEW_UPDATED_ACTION = "incident.review_updated"
 REVIEW_TRANSITIONED_ACTION = "incident.review_transitioned"
 LESSONS_REQUIRED_FOR = frozenset({IncidentSeverity.SEV1, IncidentSeverity.SEV2})
+REVIEWERS_REQUIRED_FOR = LESSONS_REQUIRED_FOR
 _OWNER_CHANGERS = frozenset({WorkspaceRole.INCIDENT_COMMANDER, WorkspaceRole.OWNER})
 _REVIEW_MOVES: frozenset[tuple[ReviewState, ReviewState]] = frozenset(
     {
@@ -93,6 +104,10 @@ class NoReviewChangesError(ValidationFailedError):
     code: ClassVar[str] = "INCIDENT_REVIEW_NO_CHANGES"
 
 
+class SignOffsMissingError(ConflictError):
+    code: ClassVar[str] = "INCIDENT_REVIEW_SIGN_OFFS_MISSING"
+
+
 @dataclass(frozen=True, slots=True)
 class ReviewChanges:
     summary: str | None = None
@@ -109,8 +124,10 @@ class IncidentReviewService:
         roles: IncidentRoleRepository | None = None,
         access: WorkspaceAccessService | None = None,
         activity: IncidentActivityRecorder | None = None,
+        reviewers: IncidentReviewerRepository | None = None,
     ) -> None:
         self._reviews = reviews or IncidentReviewRepository()
+        self._reviewers = reviewers or IncidentReviewerRepository()
         self._incidents = incidents or IncidentRepository()
         self._roles = roles or IncidentRoleRepository()
         self._access = access or WorkspaceAccessService(AccessRepository())
@@ -210,7 +227,10 @@ class IncidentReviewService:
         if target is ReviewState.IN_REVIEW:
             _require_content(review, IncidentSeverity(incident.severity))
             review.submitted_at = now
+        elif target is ReviewState.DRAFT:
+            await self._reviewers.clear_sign_offs(session, review.id)
         elif target is ReviewState.APPROVED:
+            await self._require_sign_offs(session, review, IncidentSeverity(incident.severity))
             review.approved_at = now
         elif target is ReviewState.PUBLISHED:
             review.published_at = now
@@ -253,7 +273,49 @@ class IncidentReviewService:
             None,
             {"state": review.state, "owner_user_id": str(review.owner_user_id)},
         )
+        if commander is not None and IncidentSeverity(incident.severity) in REVIEWERS_REQUIRED_FOR:
+            await self._add_default_reviewer(session, access, review, commander.user_id)
         return review
+
+    async def _add_default_reviewer(
+        self,
+        session: AsyncSession,
+        access: WorkspaceAccess,
+        review: IncidentReview,
+        user_id: uuid.UUID,
+    ) -> None:
+        await self._reviewers.save(
+            session,
+            IncidentReviewReviewer(
+                id=new_uuid7(),
+                organization_id=access.organization_id,
+                workspace_id=access.workspace_id,
+                incident_id=review.incident_id,
+                review_id=review.id,
+                user_id=user_id,
+                added_by_user_id=access.user_id,
+            ),
+        )
+        await self._record(
+            session, access, review, REVIEWER_ADDED_ACTION, None, {"user_id": str(user_id)}
+        )
+
+    async def _require_sign_offs(
+        self, session: AsyncSession, review: IncidentReview, severity: IncidentSeverity
+    ) -> None:
+        reviewers = await self._reviewers.list_for_review(session, review.id)
+        if not reviewers and severity in REVIEWERS_REQUIRED_FOR:
+            raise SignOffsMissingError(
+                f"{severity.value.upper()} reviews need at least one required reviewer."
+            )
+        missing = [
+            str(reviewer.user_id) for reviewer in reviewers if reviewer.signed_off_at is None
+        ]
+        if missing:
+            raise SignOffsMissingError(
+                f"Waiting for sign-off from {len(missing)} required reviewer(s): "
+                + ", ".join(missing)
+            )
 
     async def _change_owner(
         self,
@@ -296,7 +358,7 @@ class IncidentReviewService:
         review: IncidentReview,
         action: str,
         before: dict[str, object] | None,
-        after: dict[str, object],
+        after: dict[str, object] | None,
     ) -> None:
         await self._activity.record(
             session,

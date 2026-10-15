@@ -2,7 +2,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Request, Response
+from fastapi import APIRouter, Header, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from relyxus_api.modules.access.dependencies import WorkspaceSession, WorkspaceSessionDependency
@@ -10,11 +10,13 @@ from relyxus_api.modules.access.role_requirements import IncidentWriteWorkspaceD
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
 from relyxus_api.modules.incident.review_model import IncidentReview
 from relyxus_api.modules.incident.review_schema import (
+    ReviewerView,
     ReviewView,
     TransitionReviewRequest,
     UpdateReviewRequest,
 )
 from relyxus_api.modules.incident.review_service import IncidentReviewService, ReviewChanges
+from relyxus_api.modules.incident.reviewer_service import IncidentReviewerService
 from relyxus_api.shared.constants import IDEMPOTENCY_HEADER
 from relyxus_api.shared.http.envelope import SuccessEnvelope, wrap_success
 from relyxus_api.shared.http.etag import format_weak_etag
@@ -145,7 +147,8 @@ async def update_review(
     summary="Move a review through its states",
     description=(
         "Draft → In review (needs a summary, and lessons learned for SEV1/SEV2), In review → "
-        "Draft (send back), In review → Approved, Approved → Published (MPS-13.12). By the "
+        "Draft (send back; clears sign-offs), In review → Approved (every required reviewer "
+        "signed off; SEV1/SEV2 need at least one), Approved → Published (MPS-13.12). By the "
         f"review owner or a workspace owner. Requires `{IDEMPOTENCY_HEADER}`."
     ),
     response_model=SuccessEnvelope[ReviewView],
@@ -168,3 +171,87 @@ async def transition_review(
             workspace.session, workspace.access, incident_id, body.target_state, if_match
         ),
     )
+
+
+@router.get(
+    f"{REVIEW_PATH}/reviewers",
+    summary="List required reviewers",
+    description="Who must sign off before the review can be approved (MPS-13.13), and who has.",
+    response_model=SuccessEnvelope[list[ReviewerView]],
+)
+async def list_reviewers(
+    incident_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> SuccessEnvelope[list[ReviewerView]]:
+    reviewers = await IncidentReviewerService().list(
+        workspace.session, workspace.access, incident_id
+    )
+    return wrap_success([ReviewerView.from_reviewer(reviewer) for reviewer in reviewers])
+
+
+@router.put(
+    f"{REVIEW_PATH}/reviewers/{{user_id}}",
+    summary="Require a reviewer",
+    description=(
+        "Adds a workspace member as a required reviewer while the review is a draft or in "
+        "review. Idempotent. By the review owner or a workspace owner."
+    ),
+    response_model=SuccessEnvelope[ReviewerView],
+)
+async def add_reviewer(
+    incident_id: uuid.UUID, user_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> SuccessEnvelope[ReviewerView]:
+    reviewer = await IncidentReviewerService().add(
+        workspace.session, workspace.access, incident_id, user_id
+    )
+    return wrap_success(ReviewerView.from_reviewer(reviewer))
+
+
+@router.delete(
+    f"{REVIEW_PATH}/reviewers/{{user_id}}",
+    summary="Stop requiring a reviewer",
+    description="By the review owner or a workspace owner, while draft or in review.",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def remove_reviewer(
+    incident_id: uuid.UUID, user_id: uuid.UUID, workspace: WorkspaceSessionDependency
+) -> Response:
+    await IncidentReviewerService().remove(
+        workspace.session, workspace.access, incident_id, user_id
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    f"{REVIEW_PATH}/sign-off",
+    summary="Sign off a review",
+    description=(
+        "The caller, a required reviewer, signs off the review while it is in review. "
+        f"Recorded on the timeline. Requires `{IDEMPOTENCY_HEADER}`."
+    ),
+    response_model=SuccessEnvelope[ReviewerView],
+)
+async def sign_off_review(
+    request: Request,
+    incident_id: uuid.UUID,
+    workspace: WorkspaceSessionDependency,
+    idempotency_key: IdempotencyKey,
+) -> Response:
+    idempotency = IdempotencyService()
+    reservation = await idempotency.begin(
+        workspace.session,
+        organization_id=workspace.access.organization_id,
+        idempotency_key=idempotency_key,
+        method=request.method,
+        path=request.url.path,
+        payload={},
+    )
+    if isinstance(reservation, IdempotencyReplay):
+        return JSONResponse(status_code=reservation.status_code, content=reservation.body)
+    reviewer = await IncidentReviewerService().sign_off(
+        workspace.session, workspace.access, incident_id
+    )
+    payload = wrap_success(ReviewerView.from_reviewer(reviewer)).model_dump(mode="json")
+    await idempotency.complete(
+        workspace.session, reservation.record_id, status_code=OK_STATUS, body=payload
+    )
+    return JSONResponse(content=payload)

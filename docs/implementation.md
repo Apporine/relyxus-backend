@@ -299,6 +299,7 @@ Covers LIC-3.01, LIC-4.x, LIC-6.01/6.02/6.05/6.06, LIC-7.01, LIC-8.01, LIC-9.x, 
 | I14 | `feat/incident-follow-ups` | Post-incident follow-ups: create/list/update on resolved or closed incidents, mandatory flag (SEV1/SEV2 default), audited, on timeline (migration 0020) | MPS-26.02, MPS-13.17 (data), MPS-20.32 (conversion target) | in review |
 | I15 | `feat/incident-task-conversion` | `POST …/tasks/{id}/follow-up` moves an unfinished task to a follow-up at resolution; task list `status` filter; DB sessions pinned to UTC | MPS-11.21, MPS-20.32, MPS-11.32 (unresolved tasks become follow-ups) | in review |
 | I16 | `feat/incident-review` | Post-incident review: created on resolve (owner = IC), Draft → In review → Approved → Published, lessons required SEV1/SEV2, edit/reassign, start for earlier incidents (migration 0021) | MPS-8A.11, MPS-13.12, MPS-13.16, MPS-20.50 (partial) | in review |
+| I17 | `feat/incident-review-signoff` | Required reviewers and sign-offs: choose reviewers, sign off while in review, approval gate, sign-offs cleared on send-back, IC default reviewer for SEV1/SEV2 (migration 0022) | MPS-13.13 (partial), MPS-13.17 (sign-off part) | in review |
 
 ---
 
@@ -502,3 +503,17 @@ Product features beyond F-INCIDENT still depend on resolving remaining register 
     - Generated drafts (MPS-13.06).
 
   **Results:** ruff and mypy strict pass; pytest 473 passed against local PostgreSQL.
+
+- **I17 — 2026-10-15** — Required reviewers and sign-offs.
+  - **Table `incident_review_reviewers`** (migration 0022): unique (review, user), `signed_off_at`, forced RLS.
+  - **Endpoints:**
+    - `GET /api/v1/incidents/{id}/review/reviewers`
+    - `PUT` / `DELETE …/review/reviewers/{user_id}`: review owner or workspace owner, while draft or in review; members only; at most 50; idempotent add.
+    - `POST …/review/sign-off`: the caller, if a required reviewer, while in review; `Idempotency-Key`.
+  - **Approval gate:** in_review → approved needs every required reviewer's sign-off (409 `INCIDENT_REVIEW_SIGN_OFFS_MISSING`, naming who is missing). SEV1/SEV2 reviews also need at least one reviewer. Sending a review back to draft clears sign-offs.
+  - **Defaults:** the incident commander role holder is added as a reviewer when a SEV1/SEV2 review is created. The spec's other defaults need records that don't exist yet (register **Q-38**, provisional).
+  - Audited and on the timeline (`incident.review_reviewer_added` / `_removed` / `incident.review_signed_off`).
+  - **Contract version 0.21.0.**
+  - **Not covered yet:** service owner, Head of SRE, compliance officer and CISO defaults; reviewer reminders; review due dates (MPS-13.14).
+
+  **Results:** ruff and mypy strict pass; pytest 481 passed against local PostgreSQL.

@@ -979,6 +979,19 @@
             ],
             "title": "Impact Started At"
           },
+          "incident_type_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required once the workspace has incident types (MPS-8A.08). Supplies the default severity and visibility.",
+            "title": "Incident Type Id"
+          },
           "is_declared": {
             "default": true,
             "description": "False saves a draft that stays in triage instead of declaring it.",
@@ -989,7 +1002,15 @@
             "type": "boolean"
           },
           "severity": {
-            "$ref": "#/components/schemas/IncidentSeverity",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentSeverity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required without a type; with a type, defaults to the type's and must be allowed.",
             "examples": [
               "sev1"
             ]
@@ -1004,14 +1025,19 @@
             "type": "string"
           },
           "visibility": {
-            "$ref": "#/components/schemas/IncidentVisibility",
-            "default": "workspace",
-            "description": "Who can see the incident (MPS-8A.23). Anything but `workspace` hides it from everyone except owners, its creator and role holders, and granted people."
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncidentVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who can see the incident (MPS-8A.23); defaults to the type's, else `workspace`. Anything but `workspace` hides it from everyone except owners, its creator and role holders, and granted people."
           }
         },
         "required": [
-          "title",
-          "severity"
+          "title"
         ],
         "title": "DeclareIncidentRequest",
         "type": "object"
@@ -1723,6 +1749,36 @@
             ],
             "title": "Impact Started At"
           },
+          "incident_type_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "examples": [
+              null
+            ],
+            "title": "Incident Type Id"
+          },
+          "incident_type_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The type's configuration version at declaration.",
+            "examples": [
+              null
+            ],
+            "title": "Incident Type Version"
+          },
           "lifecycle_state": {
             "$ref": "#/components/schemas/IncidentLifecycleState",
             "examples": [
@@ -1840,6 +1896,8 @@
           "title",
           "severity",
           "visibility",
+          "incident_type_id",
+          "incident_type_version",
           "lifecycle_state",
           "impact_started_at",
           "detected_at",
@@ -4518,7 +4576,7 @@
   },
   "info": {
     "title": "Relyxus API",
-    "version": "0.29.0"
+    "version": "0.30.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -5586,7 +5644,7 @@
     },
     "/api/v1/incidents": {
       "get": {
-        "description": "Incidents in the workspace named in `X-Relyxus-Workspace-Id`, newest first. Filter by one or more `lifecycle_state`, `severity` and `service_id` values (repeat the parameter). Cursor-paginated; no total is returned.",
+        "description": "Incidents in the workspace named in `X-Relyxus-Workspace-Id`, newest first. Filter by one or more `lifecycle_state`, `severity`, `service_id` and `incident_type_id` values (repeat the parameter). Cursor-paginated; no total is returned.",
         "operationId": "list_incidents_api_v1_incidents_get",
         "parameters": [
           {
@@ -5645,6 +5703,26 @@
                 }
               ],
               "title": "Service Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "incident_type_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Incident Type Id"
             }
           },
           {

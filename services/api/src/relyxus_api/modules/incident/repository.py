@@ -25,6 +25,7 @@ class IncidentListQuery:
     lifecycle_states: Collection[str] = ()
     severities: Collection[str] = ()
     service_ids: Collection[uuid.UUID] = ()
+    incident_type_ids: Collection[uuid.UUID] = ()
 
 
 class IncidentRepository:
@@ -94,6 +95,8 @@ class IncidentRepository:
             query = query.where(Incident.lifecycle_state.in_(filters.lifecycle_states))
         if filters.severities:
             query = query.where(Incident.severity.in_(filters.severities))
+        if filters.incident_type_ids:
+            query = query.where(Incident.incident_type_id.in_(filters.incident_type_ids))
         if filters.service_ids:
             query = query.where(
                 select(IncidentAffectedService.id)

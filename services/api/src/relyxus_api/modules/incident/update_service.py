@@ -19,6 +19,7 @@ from typing import ClassVar
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from relyxus_api.modules.access.service import WorkspaceAccess
+from relyxus_api.modules.configuration.repository import ConfigurationVersionRepository
 from relyxus_api.modules.incident.activity import IncidentActivity, IncidentActivityRecorder
 from relyxus_api.modules.incident.lifecycle import TERMINAL_LIFECYCLE_STATES, IncidentLifecycleState
 from relyxus_api.modules.incident.model import Incident, IncidentSeverity
@@ -28,6 +29,7 @@ from relyxus_api.modules.incident.reported_times import (
 )
 from relyxus_api.modules.incident.repository import IncidentRepository
 from relyxus_api.modules.incident.service import INCIDENT_TARGET_TYPE, IncidentNotFoundError
+from relyxus_api.modules.incident.type_rules import require_severity_allowed
 from relyxus_api.shared.errors.app_errors import ConflictError, ValidationFailedError
 from relyxus_api.shared.http.etag import format_weak_etag
 from relyxus_api.shared.http.preconditions import assert_if_match
@@ -66,6 +68,7 @@ class IncidentUpdateService:
     ) -> None:
         self._repository = repository or IncidentRepository()
         self._activity = activity or IncidentActivityRecorder()
+        self._versions = ConfigurationVersionRepository()
 
     async def update(
         self, session: AsyncSession, access: WorkspaceAccess, changes: IncidentChanges
@@ -89,6 +92,7 @@ class IncidentUpdateService:
         if changes.severity is not None and changes.severity.value != incident.severity:
             if not changes.reason:
                 raise SeverityChangeReasonRequiredError("A reason is required to change severity.")
+            await require_severity_allowed(session, self._versions, incident, changes.severity)
             before["severity"], after["severity"] = incident.severity, changes.severity.value
             incident.severity = changes.severity.value
         self._apply_reported_times(incident, changes, before, after)

@@ -8,12 +8,15 @@ from apporine_licensing.connected_refresh import ConnectedRefreshPolicy
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER, WorkspaceSessionDependency
 from relyxus_api.modules.access.model import WorkspaceRole
 from relyxus_api.modules.idempotency.service import IdempotencyReplay, IdempotencyService
-from relyxus_api.modules.license.schema import InstallLicenseRequest, LicenseStatusView
-from relyxus_api.modules.license.service import (
-    ConnectedRefreshConfig,
-    LicenseRuntime,
-    LicenseService,
+from relyxus_api.modules.license.provider import (
+    AnyLicenseRuntime,
+    license_status,
 )
+from relyxus_api.modules.license.provider import (
+    install_license as install_for_runtime,
+)
+from relyxus_api.modules.license.schema import InstallLicenseRequest, LicenseStatusView
+from relyxus_api.modules.license.service import ConnectedRefreshConfig
 from relyxus_api.shared.errors.app_errors import PermissionDeniedError
 from relyxus_api.shared.http.envelope import SuccessEnvelope, wrap_success
 
@@ -28,11 +31,7 @@ class LicenseInstallForbiddenError(PermissionDeniedError):
     code: ClassVar[str] = "LICENSE_INSTALL_FORBIDDEN"
 
 
-def _service() -> LicenseService:
-    return LicenseService()
-
-
-def _runtime(request: Request) -> LicenseRuntime | None:
+def _runtime(request: Request) -> AnyLicenseRuntime:
     return getattr(request.app.state, "license_runtime", None)
 
 
@@ -61,7 +60,7 @@ async def get_license_status(
     request: Request,
     workspace: WorkspaceSessionDependency,
 ) -> SuccessEnvelope[LicenseStatusView]:
-    status = await _service().status(
+    status = await license_status(
         workspace.session,
         workspace.access.organization_id,
         _runtime(request),
@@ -97,10 +96,10 @@ async def install_license(
     if isinstance(reservation, IdempotencyReplay):
         return JSONResponse(status_code=reservation.status_code, content=reservation.body)
 
-    status = await _service().install(
+    status = await install_for_runtime(
         workspace.session,
         workspace.access.organization_id,
-        body.artifact,
+        body,
         _runtime(request),
         datetime.now(UTC),
     )

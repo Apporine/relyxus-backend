@@ -1490,7 +1490,7 @@ dependencies = [
     { name = "cryptography" },
 ]
 wheels = [
-    { filename = "veryion_licensing-1.1.0-py3-none-any.whl", hash = "sha256:36f498ee0d7c737e1c49418f62d45a6207f2600c67ebc91739d23c654344b78a" },
+    { filename = "veryion_licensing-1.1.0-py3-none-any.whl", hash = "sha256:10a0f643a71f218237d6360ff7bb7eebe048afca5ab0d4c70054e42987bc172e" },
 ]
 
 [package.metadata]

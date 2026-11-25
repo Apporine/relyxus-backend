@@ -192,6 +192,16 @@ def test_status_reuses_the_client_while_the_stored_state_is_unchanged() -> None:
         (_verified(state="in_grace"), "grace", None),
         (_verified(valid=False, reason="expired", state="expired"), "expired", "expired"),
         (
+            _verified(valid=False, reason="suspended", state=None, expires=None, grace_until=None),
+            "suspended",
+            "suspended",
+        ),
+        (
+            _verified(valid=False, reason="revoked", state=None, expires=None, grace_until=None),
+            "revoked",
+            "revoked",
+        ),
+        (
             _verified(
                 valid=False, reason="wrong_device", state=None, expires=None, grace_until=None
             ),

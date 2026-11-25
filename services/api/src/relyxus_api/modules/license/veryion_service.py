@@ -118,7 +118,7 @@ def _time(value: str | None) -> datetime | None:
 def _state_of(result: Verified) -> str:
     if result.valid:
         return "grace" if result.state == "in_grace" else (result.state or "active")
-    if result.reason in ("expired", "superseded"):
+    if result.reason in ("expired", "superseded", "suspended", "revoked"):
         return result.reason
     return "invalid"
 

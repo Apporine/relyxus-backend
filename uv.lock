@@ -1242,6 +1242,7 @@ dependencies = [
     { name = "pyjwt", extra = ["crypto"] },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "veryion-licensing" },
 ]
 
 [package.metadata]
@@ -1254,6 +1255,7 @@ requires-dist = [
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10,<3" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.40,<2.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.37,<1" },
+    { name = "veryion-licensing", path = "vendor/veryion_licensing-1.1.0-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -1479,6 +1481,25 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f5/62/25dcaa6b7e7b48f82ce633854ce96597ab768f9650931f4f86c572de392c/uvloop-0.23.0-cp315-cp315t-musllinux_1_2_aarch64.whl", hash = "sha256:378188efbb1524f2219d05246a3e1e5907217848d2882144dff59585f1b81d55", size = 4421324, upload-time = "2026-10-01T03:16:40.488Z" },
     { url = "https://files.pythonhosted.org/packages/05/46/04628239b43dcef703af314202a3307d6060918e2d76aa86c5b1188f5551/uvloop-0.23.0-cp315-cp315t-musllinux_1_2_x86_64.whl", hash = "sha256:4b8e207c67d207a8608fec57e116511030af3495dc0109b8c333cf9cb412b16f", size = 4462501, upload-time = "2026-10-01T03:16:42.359Z" },
 ]
+
+[[package]]
+name = "veryion-licensing"
+version = "1.1.0"
+source = { path = "vendor/veryion_licensing-1.1.0-py3-none-any.whl" }
+dependencies = [
+    { name = "cryptography" },
+]
+wheels = [
+    { filename = "veryion_licensing-1.1.0-py3-none-any.whl", hash = "sha256:36f498ee0d7c737e1c49418f62d45a6207f2600c67ebc91739d23c654344b78a" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cryptography", specifier = ">=42" },
+    { name = "pytest", marker = "python_full_version >= '3.10' and extra == 'test'", specifier = "==9.2.0" },
+    { name = "pytest", marker = "python_full_version < '3.10' and extra == 'test'", specifier = "==8.4.2" },
+]
+provides-extras = ["test"]
 
 [[package]]
 name = "virtualenv"

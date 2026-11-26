@@ -45,6 +45,7 @@ TENANT_TABLES = (
     "workspace_memberships",
     "users",
     "workspaces",
+    "organization_licenses",
     "organizations",
 )
 

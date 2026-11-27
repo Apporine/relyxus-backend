@@ -12,6 +12,7 @@ dependencies = [
     "pyjwt[crypto]>=2.10,<3",
     "sqlalchemy[asyncio]>=2.0.40,<2.1",
     "uvicorn[standard]>=0.37,<1",
+    "veryion-licensing==1.1.0",
 ]
 
 [build-system]
@@ -20,3 +21,5 @@ build-backend = "uv_build"
 
 [tool.uv.sources]
 apporine-licensing = { workspace = true }
+# Until the SDK is on PyPI, the wheel from veryion-console sdks/python is vendored.
+veryion-licensing = { path = "../../vendor/veryion_licensing-1.1.0-py3-none-any.whl" }

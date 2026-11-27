@@ -19,6 +19,11 @@ from pydantic import (
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class LicenseProvider(StrEnum):
+    APPORINE = "apporine"
+    VERYION = "veryion"
+
+
 class Environment(StrEnum):
     LOCAL = "local"
     DEVELOPMENT = "development"
@@ -54,6 +59,15 @@ class Settings(BaseSettings):
     license_status_fetch_timeout_seconds: PositiveFloat = 5.0
     license_status_cache_ttl_seconds: NonNegativeInt = 3600
     license_status_outage_grace_seconds: NonNegativeInt = 86_400
+    # Which licensing backs /license: the signed relyxus.license documents, or Veryion licence keys.
+    license_provider: LicenseProvider = LicenseProvider.APPORINE
+    veryion_product_code: str = "RLX"
+    # The public key set (vyk1 token from Veryion, Developer, Keys). Public by design; not a secret.
+    veryion_key_set: str | None = None
+    # Accept Sandbox licences. Testing and staging only; production must leave it off.
+    veryion_allow_sandbox: bool = False
+    veryion_api_base_url: AnyHttpUrl = AnyHttpUrl("https://api.veryion.com")
+    veryion_timeout_seconds: PositiveFloat = 10.0
     # MPS-8A.17: reopen within 7 days of resolution (a default to confirm, MPS-25.03).
     incident_reopen_window_days: PositiveInt = 7
     policy_bundle_path: str | None = None

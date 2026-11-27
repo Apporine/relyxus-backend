@@ -33,17 +33,23 @@ from relyxus_api.modules.incident.visibility_controller import (
 )
 from relyxus_api.modules.license.controller import router as license_router
 from relyxus_api.modules.license.key_set_loader import load_trusted_key_set_file
+from relyxus_api.modules.license.provider import AnyLicenseRuntime, license_status
 from relyxus_api.modules.license.service import (
     LicenseRuntime,
-    LicenseService,
     LicenseStatusCache,
     NoLicenseInstalledError,
 )
+from relyxus_api.modules.license.veryion_service import VeryionLicenseRuntime
 from relyxus_api.modules.policy.controller import router as policy_router
 from relyxus_api.modules.team.controller import router as team_router
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
 from relyxus_api.shared.auth.access_token import AccessTokenVerifier, JwksSigningKeyResolver
-from relyxus_api.shared.config.settings import Environment, Settings, load_settings
+from relyxus_api.shared.config.settings import (
+    Environment,
+    LicenseProvider,
+    Settings,
+    load_settings,
+)
 from relyxus_api.shared.db.engine import (
     create_database_engine,
     create_session_factory,
@@ -136,7 +142,17 @@ def create_app(settings: Settings) -> FastAPI:
     return app
 
 
-def _build_license_runtime(settings: Settings) -> LicenseRuntime | None:
+def _build_license_runtime(settings: Settings) -> AnyLicenseRuntime:
+    if settings.license_provider is LicenseProvider.VERYION:
+        if settings.veryion_key_set is None:
+            return None
+        return VeryionLicenseRuntime(
+            product_code=settings.veryion_product_code,
+            key_set=settings.veryion_key_set,
+            allow_sandbox=settings.veryion_allow_sandbox,
+            api_base_url=str(settings.veryion_api_base_url).rstrip("/"),
+            timeout_seconds=settings.veryion_timeout_seconds,
+        )
     if (
         settings.license_trusted_key_set_path is None
         or settings.license_customer_id is None
@@ -184,7 +200,7 @@ def _build_probes(
                     TenantContext(organization_id=organization_id, workspace_id=None),
                 )
                 try:
-                    view = await LicenseService().status(session, organization_id, runtime)
+                    view = await license_status(session, organization_id, runtime)
                 except NoLicenseInstalledError:
                     return False
                 return view.state in ("active", "grace")

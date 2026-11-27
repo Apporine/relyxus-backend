@@ -6,6 +6,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY packages ./packages
 COPY services ./services
+COPY vendor ./vendor
 COPY infra/aws/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh \

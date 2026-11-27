@@ -2209,14 +2209,32 @@
       "InstallLicenseRequest": {
         "properties": {
           "artifact": {
-            "description": "Signed relyxus.license JSON document",
-            "title": "Artifact",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Signed relyxus.license JSON document (licence provider apporine)",
+            "title": "Artifact"
+          },
+          "licence_key": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Veryion licence key (licence provider veryion)",
+            "title": "Licence Key"
           }
         },
-        "required": [
-          "artifact"
-        ],
         "title": "InstallLicenseRequest",
         "type": "object"
       },
@@ -2247,14 +2265,28 @@
             "type": "string"
           },
           "expires_at": {
-            "format": "date-time",
-            "title": "Expires At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
           },
           "grace_ends_at": {
-            "format": "date-time",
-            "title": "Grace Ends At",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grace Ends At"
           },
           "has_current": {
             "default": true,
@@ -2265,6 +2297,18 @@
             "format": "uuid",
             "title": "License Id",
             "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the licence does not verify, when state is invalid (Veryion).",
+            "title": "Reason"
           },
           "revision": {
             "title": "Revision",

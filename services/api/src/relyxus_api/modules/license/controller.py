@@ -102,6 +102,7 @@ async def install_license(
         body,
         _runtime(request),
         datetime.now(UTC),
+        actor=workspace.access,
     )
     envelope = wrap_success(status)
     payload = envelope.model_dump(mode="json")

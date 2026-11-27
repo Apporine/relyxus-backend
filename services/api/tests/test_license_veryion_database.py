@@ -22,6 +22,7 @@ from db_test_support import (
 )
 from relyxus_api.app import create_app
 from relyxus_api.modules.access.dependencies import WORKSPACE_HEADER
+from relyxus_api.modules.audit.model import AuditEvent
 from relyxus_api.modules.license.model import OrganizationLicense
 from relyxus_api.modules.license.veryion_service import VeryionLicenseRuntime
 from relyxus_api.modules.tenancy.context import TenantContext, apply_tenant_context
@@ -324,3 +325,45 @@ def test_install_failures_store_nothing(
     assert (response.status_code, response.json()["code"]) == expected, response.text
     assert _stored(database_url) == []
     assert _customer_of(database_url, ORG_B) is None
+
+
+def _install_events(database_url: str) -> list[AuditEvent]:
+    async def read(session: AsyncSession) -> list[AuditEvent]:
+        rows = await session.scalars(
+            select(AuditEvent)
+            .where(AuditEvent.organization_id == ORG_B, AuditEvent.action == "license.installed")
+            .order_by(AuditEvent.sequence)
+        )
+        return list(rows.all())
+
+    return run_as_superuser(database_url, read)
+
+
+def test_install_is_audited_without_the_key(make_client: ClientMaker, database_url: str) -> None:
+    before = len(_install_events(database_url))
+
+    assert _install(make_client(), GOLDEN_KEY).status_code == 201
+    events = _install_events(database_url)
+
+    assert len(events) == before + 1
+    event = events[-1]
+    assert event.workspace_id == WORKSPACE_B1
+    assert event.actor_type == "user"
+    assert event.actor_user_id is not None
+    assert event.target_type == "license"
+    assert event.target_id == str(licence_uuid(GOLDEN.licence))
+    assert event.outcome == "succeeded"
+    assert event.after_state is not None
+    assert event.after_state["provider"] == "veryion"
+    assert event.after_state["state"] == "active"
+    assert GOLDEN_KEY not in json.dumps(event.after_state)
+
+
+def test_refused_install_writes_no_install_event(
+    make_client: ClientMaker, database_url: str
+) -> None:
+    before = len(_install_events(database_url))
+
+    assert _install(make_client(), UNKNOWN_KEY).status_code >= 400
+
+    assert len(_install_events(database_url)) == before
